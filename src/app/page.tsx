@@ -2,12 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-// 👉 Cole aqui a URL do seu Google Apps Script Web App
-//    (ver instruções em GUIA-LISTA-DE-ESPERA.md)
-const SHEETS_WEBHOOK_URL =
-  "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
-
 // Total de vagas da primeira leva. O contador mostra "X / VAGAS_TOTAIS reservadas".
 const VAGAS_TOTAIS = 100;
 
@@ -168,12 +162,9 @@ function ReserveModal({ open, onClose, onSuccess }: ReserveModalProps) {
 
     setSubmitting(true);
     try {
-      // Envio para o Google Apps Script (modo no-cors).
-      // Não conseguimos ler a resposta, mas o registro é gravado na planilha.
-      await fetch(SHEETS_WEBHOOK_URL, {
+      const res = await fetch("/api/leads", {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nome: nome.trim(),
           email: email.trim(),
@@ -181,9 +172,13 @@ function ReserveModal({ open, onClose, onSuccess }: ReserveModalProps) {
           medida: medida.trim(),
           produto: "MB-1572S",
           origem: typeof window !== "undefined" ? window.location.href : "",
-          data: new Date().toISOString(),
         }),
       });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Erro ao enviar. Tente novamente em instantes.");
+        return;
+      }
       onSuccess();
     } catch (err) {
       console.error(err);
@@ -287,11 +282,17 @@ export default function CalibreLandingPage() {
   const [selectedImg, setSelectedImg] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [vagasReservadas, setVagasReservadas] = useState(0);
 
-  // Contador de vagas reservadas — anima de 0 até o valor atual.
-  // Aqui é mockado em 73; no futuro, dá pra puxar da própria planilha
-  // via um endpoint do Apps Script (ver guia).
-  const vagasReservadas = 73;
+  useEffect(() => {
+    // Registra o acesso
+    fetch("/api/track", { method: "POST" }).catch(() => {});
+
+    fetch("/api/leads/count")
+      .then((r) => r.json())
+      .then((d) => setVagasReservadas(d.count ?? 0))
+      .catch(() => {});
+  }, []);
   const vagasRestantes = Math.max(VAGAS_TOTAIS - vagasReservadas, 0);
   const percentual = Math.min((vagasReservadas / VAGAS_TOTAIS) * 100, 100);
 
