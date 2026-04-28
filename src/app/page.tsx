@@ -282,7 +282,7 @@ export default function CalibreLandingPage() {
   const [selectedImg, setSelectedImg] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [vagasReservadas, setVagasReservadas] = useState(0);
+  const [vagasReservadas, setVagasReservadas] = useState<number | null>(null);
 
   useEffect(() => {
     // Registra o acesso
@@ -290,11 +290,11 @@ export default function CalibreLandingPage() {
 
     fetch("/api/leads/count")
       .then((r) => r.json())
-      .then((d) => setVagasReservadas(d.count ?? 0))
-      .catch(() => {});
+      .then((d) => setVagasReservadas(typeof d.count === 'number' ? d.count : 0))
+      .catch(() => setVagasReservadas(0));
   }, []);
-  const vagasRestantes = Math.max(VAGAS_TOTAIS - vagasReservadas, 0);
-  const percentual = Math.min((vagasReservadas / VAGAS_TOTAIS) * 100, 100);
+  const vagasRestantes = vagasReservadas === null ? VAGAS_TOTAIS : Math.max(VAGAS_TOTAIS - vagasReservadas, 0);
+  const percentual = vagasReservadas === null ? 0 : Math.min((vagasReservadas / VAGAS_TOTAIS) * 100, 100);
 
   const images = [
     "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&q=90",
@@ -1056,8 +1056,8 @@ export default function CalibreLandingPage() {
 
             <div className="price-block">
               <div className="price-row">
-                <span className="price-current">R$ 299</span>
-                <span className="price-old">R$ 399</span>
+                <span className="price-current">R$ 449</span>
+                <span className="price-old">R$ 799</span>
               </div>
               <p className="price-perks">
                 ✓ Frete grátis para todo o Brasil &nbsp;·&nbsp; ✓ 30 dias para trocar
@@ -1070,7 +1070,7 @@ export default function CalibreLandingPage() {
                 <span className="seats-label">Vagas da 1ª leva</span>
                 <span className="seats-count">
                   <strong>
-                    <AnimatedNumber target={vagasReservadas} />
+                    <AnimatedNumber target={vagasReservadas ?? 0} />
                   </strong>
                   {" / "}{VAGAS_TOTAIS}
                 </span>
@@ -1082,7 +1082,7 @@ export default function CalibreLandingPage() {
                 />
               </div>
               <p className="seats-hint">
-                <strong>{vagasRestantes} vagas restantes</strong> · reservas
+                <strong>{vagasRestantes} vaga{vagasRestantes === 1 ? '' : 's'} restante{vagasRestantes === 1 ? '' : 's'}</strong> · reservas
                 têm prioridade quando o estoque chegar.
               </p>
             </div>
