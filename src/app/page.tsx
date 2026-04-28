@@ -1024,27 +1024,19 @@ export default function CalibreLandingPage() {
         {/* ── HERO ── */}
         <section className="hero">
 
-          {/* Galeria */}
+          {/* Vídeo principal */}
           <div className="hero-gallery fade-up" style={{ animationDelay: "0.1s" }}>
             <div className="hero-image-wrapper">
-              <img
-                src={images[selectedImg]}
-                alt="Calibre MB-1572S"
+              <video
+                src="/Black_sunglasses_rotating_202604281055.mp4"
                 className="hero-image"
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '100%', height: 'auto', borderRadius: '16px', background: '#000' }}
               />
               <div className="badge hero-badge">✦ 150.7mm</div>
-            </div>
-
-            <div className="thumbnails">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  className={`img-thumb ${selectedImg === i ? "active" : ""}`}
-                  onClick={() => setSelectedImg(i)}
-                >
-                  <img src={img} alt="" />
-                </button>
-              ))}
             </div>
           </div>
 
