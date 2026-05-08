@@ -9,6 +9,13 @@ import {
   type KeywordCandidate,
 } from '@/lib/article-orchestrator';
 import { productCatalog } from '@/lib/catalog';
+import type { KeywordSuggestion } from '@/lib/keyword-planner';
+
+interface KeywordPlannerResponse {
+  suggestions: KeywordSuggestion[];
+  source: 'google-ads' | 'mock';
+  warning?: string;
+}
 
 function emptyKeyword(): KeywordCandidate {
   return {
@@ -27,6 +34,13 @@ export function OrchestratorWorkspace() {
   const [persona, setPersona] = useState('pessoa com rosto largo que sente que oculos comuns ficam pequenos ou apertados');
   const [problemaPrincipal, setProblemaPrincipal] = useState('armacoes comuns apertam nas temporas e parecem pequenas no rosto');
   const [jornadaNarrativa, setJornadaNarrativa] = useState('Jornada do Cliente');
+  
+  const [plannerQuery, setPlannerQuery] = useState('');
+  const [plannerResults, setPlannerResults] = useState<KeywordSuggestion[]>([]);
+  const [plannerLoading, setPlannerLoading] = useState(false);
+  const [plannerWarning, setPlannerWarning] = useState('');
+  const [plannerSource, setPlannerSource] = useState<'google-ads' | 'mock' | null>(null);
+
   const [keywordPrincipal, setKeywordPrincipal] = useState<KeywordCandidate>({
     termo: 'oculos de sol para rosto largo masculino',
     intencao: 'comercial investigativa',
@@ -50,6 +64,66 @@ export function OrchestratorWorkspace() {
     keywordPrincipal,
     keywordsSecundarias,
   }), [tema, siloPath, produtoId, persona, problemaPrincipal, jornadaNarrativa, keywordPrincipal, keywordsSecundarias]);
+
+  async function handlePlannerSearch(q: string) {
+    setPlannerQuery(q);
+    setPlannerWarning('');
+    setPlannerSource(null);
+
+    if (q.trim().length < 2) {
+      setPlannerResults([]);
+      setPlannerLoading(false);
+      return;
+    }
+
+    setPlannerLoading(true);
+    try {
+      const response = await fetch(`/api/admin/keyword-planner?q=${encodeURIComponent(q)}`, {
+        cache: 'no-store',
+      });
+      const data = await response.json() as KeywordPlannerResponse | { error?: string };
+
+      if (!response.ok) {
+        setPlannerResults([]);
+        setPlannerWarning('error' in data && data.error ? data.error : 'Nao foi possivel consultar o Keyword Planner.');
+        return;
+      }
+
+      const result = data as KeywordPlannerResponse;
+      setPlannerResults(result.suggestions ?? []);
+      setPlannerSource(result.source);
+      setPlannerWarning(result.warning ?? '');
+    } catch {
+      setPlannerResults([]);
+      setPlannerWarning('Erro de rede ao consultar o Keyword Planner.');
+    } finally {
+      setPlannerLoading(false);
+    }
+  }
+
+  function applyKeyword(suggestion: KeywordSuggestion, type: 'primary' | 'secondary') {
+    const candidate: KeywordCandidate = {
+      termo: suggestion.termo,
+      intencao: suggestion.intencao,
+      volumeMensal: suggestion.volumeMensal,
+      fonteVolume: suggestion.fonte,
+      dificuldade: suggestion.dificuldade,
+    };
+
+    if (type === 'primary') {
+      setKeywordPrincipal(candidate);
+    } else {
+      setKeywordsSecundarias((current) => {
+        const firstEmptyIndex = current.findIndex(k => !k.termo);
+        if (firstEmptyIndex !== -1) {
+          return current.map((k, i) => i === firstEmptyIndex ? candidate : k);
+        }
+        return [...current, candidate];
+      });
+    }
+    setPlannerQuery('');
+    setPlannerResults([]);
+  }
 
   function updateSecondaryKeyword(index: number, patch: Partial<KeywordCandidate>) {
     setKeywordsSecundarias((current) => current.map((keyword, itemIndex) => (
@@ -100,8 +174,45 @@ export function OrchestratorWorkspace() {
 
       <section style={panelStyle}>
         <p style={eyebrowStyle}>Skill 1</p>
-        <h2 style={subtitleStyle}>Keywords Researcher</h2>
-        <p style={hintStyle}>Preencha volume real e fonte depois de validar em Google Keyword Planner, Search Console, Semrush, Ahrefs ou ferramenta equivalente.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px' }}>
+          <h2 style={{ ...subtitleStyle, margin: 0 }}>Keywords Researcher</h2>
+          <div style={{ position: 'relative', width: '300px' }}>
+             <input 
+               placeholder="Busca no Keyword Planner..." 
+               value={plannerQuery} 
+               onChange={(e) => handlePlannerSearch(e.target.value)} 
+               style={{ ...inputStyle, borderColor: '#C8F135' }} 
+             />
+             {(plannerResults.length > 0 || plannerLoading || plannerWarning) && (
+               <div style={dropdownStyle}>
+                 {plannerLoading && (
+                   <div style={dropdownEmptyStyle}>Consultando Google Ads Keyword Planner...</div>
+                 )}
+                 {!plannerLoading && plannerWarning && (
+                   <div style={dropdownWarningStyle}>{plannerWarning}</div>
+                 )}
+                 {!plannerLoading && plannerSource && (
+                   <div style={dropdownSourceStyle}>
+                     Fonte: {plannerSource === 'google-ads' ? 'Google Ads Keyword Planner' : 'Fallback local'}
+                   </div>
+                 )}
+                 {plannerResults.map((res) => (
+                   <div key={res.termo} style={dropdownItemStyle}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{res.termo}</div>
+                        <div style={{ fontSize: '11px', opacity: 0.7 }}>Vol: {res.volumeMensal} | Dif: {res.dificuldade} | {res.intencao}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button onClick={() => applyKeyword(res, 'primary')} style={tinyButtonStyle} title="Usar como Principal">P</button>
+                        <button onClick={() => applyKeyword(res, 'secondary')} style={tinyButtonStyle} title="Usar como Secundaria">S</button>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+        </div>
+        <p style={hintStyle}>Use a busca acima para consultar o Google Ads Keyword Planner. Se a API falhar, o orquestrador exibe fallback local sem expor credenciais no navegador.</p>
 
         <div style={keywordGridStyle}>
           <KeywordFields
@@ -352,4 +463,63 @@ const pathBadgeStyle: React.CSSProperties = {
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '12px',
+};
+
+const dropdownStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  background: '#1A1A1A',
+  border: '1px solid #C8F135',
+  borderRadius: '10px',
+  marginTop: '8px',
+  zIndex: 10,
+  maxHeight: '300px',
+  overflowY: 'auto',
+  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+};
+
+const dropdownItemStyle: React.CSSProperties = {
+  padding: '12px',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  color: '#fff',
+};
+
+const dropdownEmptyStyle: React.CSSProperties = {
+  padding: '12px',
+  color: 'rgba(255,255,255,0.62)',
+  fontSize: '12px',
+};
+
+const dropdownWarningStyle: React.CSSProperties = {
+  padding: '12px',
+  color: '#ffd166',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+};
+
+const dropdownSourceStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  color: '#C8F135',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  fontSize: '11px',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+};
+
+const tinyButtonStyle: React.CSSProperties = {
+  background: '#C8F135',
+  color: '#000',
+  border: 'none',
+  borderRadius: '4px',
+  width: '24px',
+  height: '24px',
+  fontSize: '11px',
+  fontWeight: 900,
+  cursor: 'pointer',
 };
