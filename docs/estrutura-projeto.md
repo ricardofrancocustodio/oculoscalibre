@@ -30,6 +30,8 @@ Este documento descreve a estrutura atual do projeto, com foco nas áreas públi
 - `/src/app/admin/posts/PostForm.tsx` — formulário com suporte à estrutura do silo e slug do artigo.
 - `/src/app/admin/posts/actions.ts` — create/update/delete/publish com revalidação das páginas do blog.
 - `/src/app/admin/posts/MarkdownPreview.tsx` — preview do conteúdo em Markdown.
+- `/src/app/admin/orquestrador/page.tsx` — cockpit do orquestrador editorial de artigos.
+- `/src/app/admin/orquestrador/OrchestratorWorkspace.tsx` — interface client-side para montar o briefing dos bots.
 
 ## APIs
 - `/src/app/api/leads/route.ts` — cria lead e dispara e-mails via Resend.
@@ -39,8 +41,11 @@ Este documento descreve a estrutura atual do projeto, com foco nas áreas públi
 ## Camada de dados e utilitários
 - `/src/lib/db.ts` — cliente Neon, criação idempotente de tabelas e queries de posts/leads.
 - `/src/lib/blog.ts` — transformação de posts em dados de navegação por silo, breadcrumbs e relacionados.
+- `/src/lib/article-orchestrator.ts` — contratos das skills editoriais e geração de briefing operacional.
+- `/src/lib/catalog.ts` — catálogo editorial dos produtos usados pelo integrador de conteúdo.
 - `/src/lib/slug.ts` — slugify, parsing e composição de caminhos hierárquicos do blog.
 - `/src/lib/markdown.tsx` — renderização sanitizada de Markdown.
+- `/src/app/sitemap.ts` — sitemap dinâmico com landing, blog, páginas-pilar e posts publicados.
 
 ## Assets e documentação
 - `/public` — arquivos públicos estáticos.

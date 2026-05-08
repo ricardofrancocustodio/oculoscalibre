@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { sql, ensureLeadsTable, ensureStatsTable } from '@/lib/db';
 import { logout } from './actions';
 
@@ -61,19 +62,23 @@ export default async function AdminPage() {
             Admin · Dashboard
           </span>
         </div>
-        <form action={logout}>
-          <button type="submit" style={{
-            background: 'transparent',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.5)',
-            padding: '8px 20px',
-            borderRadius: '100px',
-            fontSize: '12px',
-            cursor: 'pointer',
-          }}>
-            Sair
-          </button>
-        </form>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <Link href="/admin/posts" style={adminNavLinkStyle}>Posts</Link>
+          <Link href="/admin/orquestrador" style={adminNavLinkStyle}>Orquestrador</Link>
+          <form action={logout}>
+            <button type="submit" style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: 'rgba(255,255,255,0.5)',
+              padding: '8px 20px',
+              borderRadius: '100px',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}>
+              Sair
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Stats */}
@@ -201,3 +206,9 @@ export default async function AdminPage() {
     </div>
   );
 }
+
+const adminNavLinkStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.62)',
+  fontSize: '13px',
+  textDecoration: 'none',
+};

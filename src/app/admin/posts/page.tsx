@@ -179,6 +179,9 @@ function Header() {
         <Link href="/admin" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', textDecoration: 'none' }}>
           Leads
         </Link>
+        <Link href="/admin/orquestrador" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', textDecoration: 'none' }}>
+          Orquestrador
+        </Link>
         <Link href="/admin/posts" style={{ color: '#fff', fontSize: '13px', textDecoration: 'none' }}>
           Posts
         </Link>
