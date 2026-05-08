@@ -1,35 +1,64 @@
-# Estrutura do Projeto — Calibre (Next.js + Firebase)
+# Estrutura do Projeto — Calibre
 
-Este documento descreve a estrutura principal do projeto, destacando os arquivos e pastas mais relevantes para desenvolvimento, build e deploy.
+Este documento descreve a estrutura atual do projeto, com foco nas áreas públicas do site, no painel admin e no blog em arquitetura de silos.
 
-## Raiz do Projeto
-- **README.md** — Documentação geral do projeto.
-- **package.json** — Dependências, scripts e metadados do projeto.
-- **next.config.ts** — Configuração do Next.js (inclui output estático e domínios de imagem).
-- **firebase.json** — Configuração do Firebase Hosting (define pasta de deploy, rewrites, etc).
-- **.firebaserc** — Referência ao projeto Firebase utilizado.
+## Raiz do projeto
+- `package.json` — scripts e dependências da aplicação Next.js.
+- `next.config.ts` — configuração principal do Next.js.
+- `eslint.config.mjs` — lint do projeto.
+- `postcss.config.mjs` — integração do Tailwind CSS v4.
+- `AGENTS.md` / `CLAUDE.md` — instruções operacionais do repositório.
+- `firebase.json` — legado da hospedagem anterior. O deploy atual é feito na Vercel.
 
-## Diretórios Importantes
-- **/src/app/** — Código principal da aplicação Next.js (App Router). Contém:
-  - **page.tsx** — Página principal do produto (landing page premium).
-- **/out/** — Build estático gerado pelo Next.js para deploy no Firebase Hosting.
-- **/.next/** — Build intermediário do Next.js (não usado no deploy estático).
-- **/docs/** — Documentação incremental e técnica do projeto.
+## Código da aplicação
+- `/src/app/layout.tsx` — layout raiz, fontes globais e metadata base.
+- `/src/app/globals.css` — estilos globais, utilitários responsivos e tipografia do blog.
+- `/src/app/page.tsx` — landing page principal do MB-1572S.
 
-## Outros Arquivos Relevantes
-- **public/** — (Se existir) Arquivos estáticos públicos (favicons, imagens, etc).
-- **tailwind.config.js** — (Se existir) Configuração do Tailwind CSS.
-- **tsconfig.json** — (Se existir) Configuração do TypeScript.
+## Blog público
+- `/src/app/blog/page.tsx` — home do blog com visão dos silos, artigos recentes e conteúdos legados.
+- `/src/app/blog/[...slug]/page.tsx` — resolve páginas-pilar, subtemas e artigos publicados em URLs hierárquicas.
+- `/src/app/blog/_components.tsx` — casca visual compartilhada do blog, cards e layout responsivo.
 
-## Fluxo de Deploy
-1. Build: `npm run build` (gera `/out`)
-2. Deploy: `firebase deploy --only hosting`
+## Admin
+- `/src/app/admin/page.tsx` — dashboard de leads e estatísticas.
+- `/src/app/admin/actions.ts` — login/logout do admin.
+- `/src/app/admin/login/page.tsx` — tela de autenticação.
+- `/src/app/admin/posts/page.tsx` — listagem de posts.
+- `/src/app/admin/posts/novo/page.tsx` — criação de post.
+- `/src/app/admin/posts/[id]/page.tsx` — edição de post.
+- `/src/app/admin/posts/PostForm.tsx` — formulário com suporte à estrutura do silo e slug do artigo.
+- `/src/app/admin/posts/actions.ts` — create/update/delete/publish com revalidação das páginas do blog.
+- `/src/app/admin/posts/MarkdownPreview.tsx` — preview do conteúdo em Markdown.
 
-## Observações
-- O projeto utiliza Next.js 14+ com App Router e Tailwind CSS.
-- O deploy é feito como site estático (output: export) no Firebase Hosting.
-- O domínio customizado é gerenciado via Registro.br.
+## APIs
+- `/src/app/api/leads/route.ts` — cria lead e dispara e-mails via Resend.
+- `/src/app/api/leads/count/route.ts` — total de leads para o contador público.
+- `/src/app/api/track/route.ts` — registra page views.
 
----
+## Camada de dados e utilitários
+- `/src/lib/db.ts` — cliente Neon, criação idempotente de tabelas e queries de posts/leads.
+- `/src/lib/blog.ts` — transformação de posts em dados de navegação por silo, breadcrumbs e relacionados.
+- `/src/lib/slug.ts` — slugify, parsing e composição de caminhos hierárquicos do blog.
+- `/src/lib/markdown.tsx` — renderização sanitizada de Markdown.
 
-Mantenha este arquivo atualizado conforme a estrutura evoluir.
+## Assets e documentação
+- `/public` — arquivos públicos estáticos.
+- `/docs` — histórico incremental das implementações e documentos de apoio.
+
+## Fluxo de publicação do blog
+1. Criar ou editar um post em `/admin/posts`.
+2. Informar a trilha do silo em formato hierárquico, por exemplo: `formatos-de-oculos/armacoes-retangulares`.
+3. Informar o slug do artigo.
+4. Publicar o conteúdo para gerar URLs como `/blog/formatos-de-oculos/armacoes-retangulares/como-escolher`.
+5. O blog passa a expor:
+   - home do blog em `/blog`
+   - página-pilar por silo em `/blog/<silo>`
+   - páginas intermediárias de subtema em `/blog/<silo>/<subtema>`
+   - artigo final em `/blog/<silo>/<subtema>/<artigo>`
+
+## Build e deploy
+1. Build local: `npm run build`
+2. Deploy de produção: `npx vercel --prod`
+
+Mantenha este documento atualizado sempre que houver nova rota, novo módulo ou alteração estrutural relevante.
