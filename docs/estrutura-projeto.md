@@ -43,6 +43,7 @@ Este documento descreve a estrutura atual do projeto, com foco nas áreas públi
 - `/src/lib/db.ts` — cliente Neon, criação idempotente de tabelas e queries de posts/leads.
 - `/src/lib/blog.ts` — transformação de posts em dados de navegação por silo, breadcrumbs e relacionados.
 - `/src/lib/article-orchestrator.ts` — contratos das skills editoriais e geração de briefing operacional.
+- `/src/lib/article-writer.ts` — gera rascunhos Markdown do Redator com perfis editoriais variáveis a partir do briefing integrado.
 - `/src/lib/content-integrator.ts` — cruza keyword, intenção, produto, medidas, dor e CTA para gerar o pacote editorial enviado ao Redator.
 - `/src/lib/catalog.ts` — catálogo editorial dos produtos usados pelo integrador de conteúdo.
 - `/src/lib/google-ads-keyword-planner.ts` — cliente server-only da Google Ads API para busca real de ideias de palavras-chave.

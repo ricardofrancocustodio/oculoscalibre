@@ -9,7 +9,15 @@ import {
   type KeywordCandidate,
 } from '@/lib/article-orchestrator';
 import { productCatalog } from '@/lib/catalog';
+import {
+  buildArticleDraft,
+  buildDraftStoragePayload,
+  getRandomArticleWriterProfile,
+  type ArticleWriterProfile,
+} from '@/lib/article-writer';
 import type { KeywordSuggestion } from '@/lib/keyword-planner';
+
+const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
 
 interface KeywordPlannerResponse {
   suggestions: KeywordSuggestion[];
@@ -58,6 +66,7 @@ export function OrchestratorWorkspace() {
   const [plannerLoading, setPlannerLoading] = useState(false);
   const [plannerWarning, setPlannerWarning] = useState('');
   const [plannerSource, setPlannerSource] = useState<'google-ads' | 'mock' | null>(null);
+  const [writerProfile, setWriterProfile] = useState<ArticleWriterProfile>(() => getRandomArticleWriterProfile());
 
   const [keywordPrincipal, setKeywordPrincipal] = useState<KeywordCandidate>({
     termo: 'oculos de sol para rosto largo masculino',
@@ -82,6 +91,17 @@ export function OrchestratorWorkspace() {
     keywordPrincipal,
     keywordsSecundarias,
   }), [tema, siloPath, produtoId, persona, problemaPrincipal, jornadaNarrativa, keywordPrincipal, keywordsSecundarias]);
+
+  const articleDraft = useMemo(() => buildArticleDraft({
+    tema,
+    persona,
+    jornadaNarrativa,
+    keywordPrincipal,
+    keywordsObrigatorias: keywordsSecundarias.filter((keyword) => keyword.termo.trim()),
+    produto: plan.produto,
+    integracaoConteudo: plan.integracaoConteudo,
+    profile: writerProfile,
+  }), [tema, persona, jornadaNarrativa, keywordPrincipal, keywordsSecundarias, plan.produto, plan.integracaoConteudo, writerProfile]);
 
   async function handlePlannerSearch(q: string) {
     const query = q.trim();
@@ -119,9 +139,9 @@ export function OrchestratorWorkspace() {
       }
 
       const result = data as KeywordPlannerResponse;
-  const relatedSuggestions = (result.suggestions ?? []).filter((suggestion) => normalizeTerm(suggestion.termo) !== normalizeTerm(query));
-  setPlannerResults(relatedSuggestions);
-  setKeywordsSecundarias(relatedSuggestions.map(suggestionToKeyword));
+        const relatedSuggestions = (result.suggestions ?? []).filter((suggestion) => normalizeTerm(suggestion.termo) !== normalizeTerm(query));
+        setPlannerResults(relatedSuggestions);
+        setKeywordsSecundarias(relatedSuggestions.map(suggestionToKeyword));
       setPlannerSource(result.source);
       setPlannerWarning(result.warning ?? '');
     } catch {
@@ -131,6 +151,17 @@ export function OrchestratorWorkspace() {
     } finally {
       setPlannerLoading(false);
     }
+  }
+
+  function prepareDraftInPostEditor() {
+    const payload = buildDraftStoragePayload({
+      draft: articleDraft,
+      topicPath: siloPath,
+      slugBase: plan.slugSugerido,
+    });
+
+    window.localStorage.setItem(ORCHESTRATOR_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+    window.location.href = '/admin/posts/novo';
   }
 
   return (
@@ -270,6 +301,38 @@ export function OrchestratorWorkspace() {
           <span style={pathBadgeStyle}>/blog/{plan.postPathSugerido || 'silo/artigo'}</span>
         </div>
         <textarea readOnly value={plan.briefMarkdown} style={briefStyle} />
+      </section>
+
+      <section style={panelStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p style={eyebrowStyle}>Skill 3</p>
+            <h2 style={subtitleStyle}>Redator</h2>
+            <p style={hintStyle}>Rascunho gerado a partir do briefing do Integrador, com variacao editorial sorteada para evitar artigos sempre iguais.</p>
+          </div>
+          <div style={buttonGroupStyle}>
+            <button type="button" onClick={() => setWriterProfile(getRandomArticleWriterProfile())} style={secondaryButtonStyle}>
+              Nova variacao
+            </button>
+            <button type="button" onClick={prepareDraftInPostEditor} style={searchButtonStyle}>
+              Abrir como post
+            </button>
+          </div>
+        </div>
+
+        <div style={writerMetaGridStyle}>
+          <span style={writerBadgeStyle}>Perfil: {articleDraft.perfil.nome}</span>
+          <span style={writerBadgeStyle}>Tamanho: {articleDraft.perfil.tamanho}</span>
+          <span style={writerBadgeStyle}>Tecnica: {articleDraft.perfil.tecnica}</span>
+          <span style={writerBadgeStyle}>Ritmo: {articleDraft.perfil.ritmo}</span>
+        </div>
+
+        <div style={writerSummaryStyle}>
+          <strong>{articleDraft.titulo}</strong>
+          <p>{articleDraft.resumo}</p>
+        </div>
+
+        <textarea readOnly value={articleDraft.conteudoMarkdown} style={draftStyle} />
       </section>
     </div>
   );
@@ -418,6 +481,11 @@ const briefStyle: React.CSSProperties = {
   lineHeight: 1.55,
 };
 
+const draftStyle: React.CSSProperties = {
+  ...briefStyle,
+  minHeight: '640px',
+};
+
 const primaryLinkStyle: React.CSSProperties = {
   color: '#0A0A0A',
   background: '#C8F135',
@@ -462,6 +530,49 @@ const searchButtonStyle: React.CSSProperties = {
   fontSize: '13px',
   fontWeight: 900,
   cursor: 'pointer',
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  color: '#C8F135',
+  background: 'transparent',
+  border: '1px solid rgba(200,241,53,0.45)',
+  borderRadius: '10px',
+  padding: '12px 16px',
+  fontSize: '13px',
+  fontWeight: 900,
+  cursor: 'pointer',
+};
+
+const buttonGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+};
+
+const writerMetaGridStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+  marginBottom: '14px',
+};
+
+const writerBadgeStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.78)',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '999px',
+  padding: '9px 12px',
+  fontSize: '12px',
+};
+
+const writerSummaryStyle: React.CSSProperties = {
+  background: '#0A0A0A',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '12px',
+  padding: '14px',
+  color: '#fff',
+  marginBottom: '14px',
+  lineHeight: 1.5,
 };
 
 const researchResultsStyle: React.CSSProperties = {

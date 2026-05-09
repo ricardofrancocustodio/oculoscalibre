@@ -1,8 +1,19 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { MarkdownPreview } from './MarkdownPreview';
 import { normalizeTopicPath, parsePostPath } from '@/lib/slug';
+
+const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
+
+interface StoredOrchestratorDraft {
+  titulo?: string;
+  resumo?: string;
+  conteudo?: string;
+  tags?: string;
+  topicPath?: string;
+  slug?: string;
+}
 
 interface PostFormProps {
   mode: 'criar' | 'editar';
@@ -32,6 +43,28 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
   const [tags, setTags] = useState((initial?.tags ?? []).join(', '));
   const [autor, setAutor] = useState(initial?.autor ?? 'Calibre');
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (mode !== 'criar' || initial) return;
+
+    const rawDraft = window.localStorage.getItem(ORCHESTRATOR_DRAFT_STORAGE_KEY);
+    if (!rawDraft) return;
+
+    try {
+      const draft = JSON.parse(rawDraft) as StoredOrchestratorDraft;
+      if (draft.titulo) setTitulo(draft.titulo);
+      if (draft.resumo) setResumo(draft.resumo);
+      if (draft.conteudo) setConteudo(draft.conteudo);
+      if (draft.tags) setTags(draft.tags);
+      if (draft.topicPath) setTopicPath(normalizeTopicPath(draft.topicPath));
+      if (draft.slug) {
+        setSlug(autoSlug(draft.slug));
+        setSlugTouched(true);
+      }
+    } finally {
+      window.localStorage.removeItem(ORCHESTRATOR_DRAFT_STORAGE_KEY);
+    }
+  }, [initial, mode]);
 
   function autoSlug(value: string) {
     return value
