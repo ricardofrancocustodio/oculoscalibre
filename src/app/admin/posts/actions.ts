@@ -24,6 +24,44 @@ function parseTags(raw: string | null): string[] {
     .slice(0, 12);
 }
 
+function parseKeywords(raw: string | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function nullableTrim(value: FormDataEntryValue | null): string | null {
+  const trimmed = String(value ?? '').trim();
+  return trimmed ? trimmed : null;
+}
+
+interface SeoFields {
+  meta_title: string | null;
+  meta_description: string | null;
+  keyword_principal: string | null;
+  keywords_secundarias: string[];
+  canonical_url: string | null;
+  og_image_url: string | null;
+  cover_alt: string | null;
+  noindex: boolean;
+}
+
+function readSeoFields(formData: FormData): SeoFields {
+  return {
+    meta_title: nullableTrim(formData.get('meta_title')),
+    meta_description: nullableTrim(formData.get('meta_description')),
+    keyword_principal: nullableTrim(formData.get('keyword_principal')),
+    keywords_secundarias: parseKeywords(formData.get('keywords_secundarias') as string | null),
+    canonical_url: nullableTrim(formData.get('canonical_url')),
+    og_image_url: nullableTrim(formData.get('og_image_url')),
+    cover_alt: nullableTrim(formData.get('cover_alt')),
+    noindex: formData.get('noindex') === 'on',
+  };
+}
+
 async function uploadCapaIfPresent(file: File | null): Promise<string | null> {
   if (!file || file.size === 0) return null;
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -92,10 +130,19 @@ export async function createPost(formData: FormData) {
   const capaUrl = await uploadCapaIfPresent(capaFile);
   const publicado = action === 'publicar';
   const publishedAt = publicado ? new Date().toISOString() : null;
+  const seo = readSeoFields(formData);
 
   const rows = (await sql`
-    INSERT INTO posts (slug, titulo, resumo, conteudo_md, capa_url, tags, autor, publicado, published_at)
-    VALUES (${slug}, ${titulo}, ${resumo}, ${conteudo}, ${capaUrl}, ${tags}, ${autor}, ${publicado}, ${publishedAt})
+    INSERT INTO posts (
+      slug, titulo, resumo, conteudo_md, capa_url, tags, autor, publicado, published_at,
+      meta_title, meta_description, keyword_principal, keywords_secundarias,
+      canonical_url, og_image_url, cover_alt, noindex
+    )
+    VALUES (
+      ${slug}, ${titulo}, ${resumo}, ${conteudo}, ${capaUrl}, ${tags}, ${autor}, ${publicado}, ${publishedAt},
+      ${seo.meta_title}, ${seo.meta_description}, ${seo.keyword_principal}, ${seo.keywords_secundarias},
+      ${seo.canonical_url}, ${seo.og_image_url}, ${seo.cover_alt}, ${seo.noindex}
+    )
     RETURNING id, slug
   `) as { id: number; slug: string }[];
 
@@ -158,6 +205,8 @@ export async function updatePost(id: number, formData: FormData) {
     publicado = false;
   }
 
+  const seo = readSeoFields(formData);
+
   await sql`
     UPDATE posts SET
       slug = ${slug},
@@ -169,6 +218,15 @@ export async function updatePost(id: number, formData: FormData) {
       autor = ${autor},
       publicado = ${publicado},
       published_at = ${publishedAt},
+      meta_title = ${seo.meta_title},
+      meta_description = ${seo.meta_description},
+      keyword_principal = ${seo.keyword_principal},
+      keywords_secundarias = ${seo.keywords_secundarias},
+      canonical_url = ${seo.canonical_url},
+      og_image_url = ${seo.og_image_url},
+      cover_alt = ${seo.cover_alt},
+      noindex = ${seo.noindex},
+      revised_at = CASE WHEN publicado = true AND ${publicado}::boolean = true THEN now() ELSE revised_at END,
       updated_at = now()
     WHERE id = ${id}
   `;

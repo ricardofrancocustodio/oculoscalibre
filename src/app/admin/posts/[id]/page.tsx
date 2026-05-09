@@ -96,6 +96,14 @@ export default async function EditarPostPage({
             tags: post.tags,
             autor: post.autor,
             publicado: post.publicado,
+            meta_title: post.meta_title,
+            meta_description: post.meta_description,
+            keyword_principal: post.keyword_principal,
+            keywords_secundarias: post.keywords_secundarias,
+            canonical_url: post.canonical_url,
+            og_image_url: post.og_image_url,
+            cover_alt: post.cover_alt,
+            noindex: post.noindex,
           }}
           action={boundUpdate}
         />

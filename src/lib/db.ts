@@ -62,6 +62,18 @@ export async function ensurePostsTable() {
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_posts_publicado ON posts(publicado, published_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug)`;
+
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS meta_title TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS meta_description TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS keyword_principal TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS keywords_secundarias TEXT[] NOT NULL DEFAULT '{}'`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS canonical_url TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS og_image_url TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_alt TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS noindex BOOLEAN NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS revised_at TIMESTAMPTZ`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_posts_keyword_principal ON posts(keyword_principal) WHERE keyword_principal IS NOT NULL`;
+
   postsTableReady = true;
 }
 
@@ -78,6 +90,15 @@ export interface Post {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  keyword_principal: string | null;
+  keywords_secundarias: string[];
+  canonical_url: string | null;
+  og_image_url: string | null;
+  cover_alt: string | null;
+  noindex: boolean;
+  revised_at: string | null;
 }
 
 export async function getAllPostsAdmin(): Promise<Post[]> {
@@ -106,4 +127,37 @@ export async function getPostById(id: number): Promise<Post | null> {
   await ensurePostsTable();
   const rows = await sql`SELECT * FROM posts WHERE id = ${id} LIMIT 1` as Post[];
   return rows[0] ?? null;
+}
+
+export interface KeywordCannibalizationGroup {
+  keyword: string;
+  posts: Array<Pick<Post, 'id' | 'slug' | 'titulo' | 'publicado' | 'published_at'>>;
+}
+
+export async function getKeywordCannibalization(): Promise<KeywordCannibalizationGroup[]> {
+  await ensurePostsTable();
+  const rows = (await sql`
+    SELECT keyword_principal AS keyword, id, slug, titulo, publicado, published_at
+    FROM posts
+    WHERE keyword_principal IS NOT NULL AND keyword_principal <> ''
+    ORDER BY keyword_principal, published_at DESC NULLS LAST
+  `) as Array<{
+    keyword: string;
+    id: number;
+    slug: string;
+    titulo: string;
+    publicado: boolean;
+    published_at: string | null;
+  }>;
+
+  const grouped = new Map<string, KeywordCannibalizationGroup>();
+  for (const row of rows) {
+    const key = row.keyword.trim().toLowerCase();
+    if (!key) continue;
+    const current = grouped.get(key) ?? { keyword: row.keyword, posts: [] };
+    current.posts.push({ id: row.id, slug: row.slug, titulo: row.titulo, publicado: row.publicado, published_at: row.published_at });
+    grouped.set(key, current);
+  }
+
+  return [...grouped.values()].filter((group) => group.posts.length > 1);
 }

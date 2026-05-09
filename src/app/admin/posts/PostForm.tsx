@@ -14,6 +14,11 @@ interface StoredOrchestratorDraft {
   tags?: string;
   topicPath?: string;
   slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywordPrincipal?: string;
+  keywordsSecundarias?: string;
+  coverAlt?: string;
 }
 
 interface PostFormProps {
@@ -28,6 +33,14 @@ interface PostFormProps {
     tags: string[];
     autor: string;
     publicado: boolean;
+    meta_title?: string | null;
+    meta_description?: string | null;
+    keyword_principal?: string | null;
+    keywords_secundarias?: string[];
+    canonical_url?: string | null;
+    og_image_url?: string | null;
+    cover_alt?: string | null;
+    noindex?: boolean;
   };
   action: (formData: FormData) => Promise<void> | void;
   publishLabel?: string;
@@ -43,6 +56,14 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
   const [conteudo, setConteudo] = useState(initial?.conteudo_md ?? '');
   const [tags, setTags] = useState((initial?.tags ?? []).join(', '));
   const [autor, setAutor] = useState(initial?.autor ?? 'Calibre');
+  const [metaTitle, setMetaTitle] = useState(initial?.meta_title ?? '');
+  const [metaDescription, setMetaDescription] = useState(initial?.meta_description ?? '');
+  const [keywordPrincipal, setKeywordPrincipal] = useState(initial?.keyword_principal ?? '');
+  const [keywordsSecundarias, setKeywordsSecundarias] = useState((initial?.keywords_secundarias ?? []).join(', '));
+  const [canonicalUrl, setCanonicalUrl] = useState(initial?.canonical_url ?? '');
+  const [ogImageUrl, setOgImageUrl] = useState(initial?.og_image_url ?? '');
+  const [coverAlt, setCoverAlt] = useState(initial?.cover_alt ?? '');
+  const [noindex, setNoindex] = useState(Boolean(initial?.noindex));
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -62,6 +83,11 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
         setSlug(autoSlug(draft.slug));
         setSlugTouched(true);
       }
+      if (draft.metaTitle) setMetaTitle(draft.metaTitle);
+      if (draft.metaDescription) setMetaDescription(draft.metaDescription);
+      if (draft.keywordPrincipal) setKeywordPrincipal(draft.keywordPrincipal);
+      if (draft.keywordsSecundarias) setKeywordsSecundarias(draft.keywordsSecundarias);
+      if (draft.coverAlt) setCoverAlt(draft.coverAlt);
     } finally {
       window.localStorage.removeItem(ORCHESTRATOR_DRAFT_STORAGE_KEY);
     }
@@ -162,6 +188,101 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
           />
         </Field>
       </div>
+
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>SEO &amp; metadados</legend>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <Field label={`Meta title (${metaTitle.length}/60)`}>
+            <input
+              name="meta_title"
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              maxLength={70}
+              placeholder="Padrão: usa o título do post"
+              style={inputStyle}
+            />
+          </Field>
+          <Field label="Keyword principal">
+            <input
+              name="keyword_principal"
+              value={keywordPrincipal}
+              onChange={(e) => setKeywordPrincipal(e.target.value)}
+              placeholder="ex.: oculos para rosto largo"
+              style={inputStyle}
+            />
+          </Field>
+        </div>
+
+        <div style={{ marginTop: '16px' }}>
+          <Field label={`Meta description (${metaDescription.length}/160 — recomendado 120–160)`}>
+            <textarea
+              name="meta_description"
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              rows={2}
+              maxLength={200}
+              placeholder="Padrão: usa o resumo do post"
+              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </Field>
+        </div>
+
+        <div style={{ marginTop: '16px' }}>
+          <Field label="Keywords secundárias (cauda longa, separadas por vírgula)">
+            <input
+              name="keywords_secundarias"
+              value={keywordsSecundarias}
+              onChange={(e) => setKeywordsSecundarias(e.target.value)}
+              placeholder="ex.: oculos masculino rosto grande, frontal 150mm, armacao acetato"
+              style={inputStyle}
+            />
+          </Field>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '16px' }}>
+          <Field label="Canonical URL (opcional, ex.: outro post canônico)">
+            <input
+              name="canonical_url"
+              value={canonicalUrl}
+              onChange={(e) => setCanonicalUrl(e.target.value)}
+              placeholder="https://oculoscalibre.com.br/blog/..."
+              style={inputStyle}
+            />
+          </Field>
+          <Field label="OG image URL (opcional, sobrescreve a capa)">
+            <input
+              name="og_image_url"
+              value={ogImageUrl}
+              onChange={(e) => setOgImageUrl(e.target.value)}
+              placeholder="https://..."
+              style={inputStyle}
+            />
+          </Field>
+        </div>
+
+        <div style={{ marginTop: '16px' }}>
+          <Field label="Texto alternativo da capa (acessibilidade + SEO)">
+            <input
+              name="cover_alt"
+              value={coverAlt}
+              onChange={(e) => setCoverAlt(e.target.value)}
+              placeholder="Descreva a capa em uma frase usando a keyword principal"
+              style={inputStyle}
+            />
+          </Field>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+          <input
+            type="checkbox"
+            name="noindex"
+            checked={noindex}
+            onChange={(e) => setNoindex(e.target.checked)}
+          />
+          <span>Marcar como noindex (não aparece em buscadores)</span>
+        </label>
+      </fieldset>
 
       <Field label="Capa (imagem)">
         {initial?.capa_url && (
@@ -286,6 +407,25 @@ const inputStyle: React.CSSProperties = {
   fontSize: '14px',
   width: '100%',
   fontFamily: 'inherit',
+};
+
+const fieldsetStyle: React.CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: '12px',
+  padding: '20px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+  background: 'rgba(255,255,255,0.02)',
+};
+
+const legendStyle: React.CSSProperties = {
+  padding: '0 8px',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'rgba(200,241,53,0.85)',
 };
 
 const hintStyle: React.CSSProperties = {

@@ -169,6 +169,16 @@ export function OrchestratorWorkspace() {
       draft: articleDraft,
       topicPath: siloPath,
       slugBase: plan.slugSugerido,
+      writerInput: {
+        tema,
+        persona,
+        jornadaNarrativa,
+        keywordPrincipal,
+        keywordsObrigatorias: keywordsSecundarias.filter((keyword) => keyword.termo.trim()),
+        produto: plan.produto,
+        integracaoConteudo: plan.integracaoConteudo,
+        profile: writerProfile,
+      },
     });
 
     window.localStorage.setItem(ORCHESTRATOR_DRAFT_STORAGE_KEY, JSON.stringify(payload));

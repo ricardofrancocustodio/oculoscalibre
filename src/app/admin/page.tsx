@@ -65,6 +65,7 @@ export default async function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <Link href="/admin/posts" style={adminNavLinkStyle}>Posts</Link>
           <Link href="/admin/orquestrador" style={adminNavLinkStyle}>Orquestrador</Link>
+          <Link href="/admin/seo-audit" style={adminNavLinkStyle}>Auditoria SEO</Link>
           <form action={logout}>
             <button type="submit" style={{
               background: 'transparent',

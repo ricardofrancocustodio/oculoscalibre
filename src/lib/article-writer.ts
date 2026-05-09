@@ -139,6 +139,28 @@ function buildCtaSection(input: ArticleWriterInput): string {
   return `## Proximo passo\n\nSe a busca faz sentido para o seu caso, o proximo passo e ${input.integracaoConteudo.ctaSugerido}. Compare as medidas, veja se elas conversam com o que voce sente nos oculos atuais e avance apenas quando a escolha parecer coerente para o seu rosto e seu uso.`;
 }
 
+function buildAuthorBioBlock(authorName: string): string {
+  const safeAuthor = authorName.trim() || 'Calibre';
+  return `\n\n---\n\n## Sobre ${safeAuthor}\n\n${safeAuthor} e referencia editorial da Calibre, marca brasileira de oculos de sol em acetato premium para rostos largos. O conteudo e revisado com base em medidas reais do produto e em cruzamento com problemas concretos relatados por leitores.`;
+}
+
+function buildSeoReminderBlock(input: ArticleWriterInput): string {
+  const keyword = input.keywordPrincipal.termo || input.tema;
+  return `\n\n> Lembrete editorial: ao adicionar imagens neste artigo, escreva textos alternativos que descrevam a cena e citem naturalmente "${keyword}" quando fizer sentido. O cover_alt do post tambem precisa estar preenchido.`;
+}
+
+function buildSuggestedCoverAlt(input: ArticleWriterInput): string {
+  const keyword = (input.keywordPrincipal.termo || input.tema).trim();
+  const keywordReady = keyword.charAt(0).toUpperCase() + keyword.slice(1);
+  return `${keywordReady} ilustrado pelo ${input.produto.nome} em foco frontal sobre fundo neutro`;
+}
+
+function buildSuggestedMetaDescription(input: ArticleWriterInput): string {
+  const keyword = (input.keywordPrincipal.termo || input.tema).trim();
+  const sentence = `${keyword.charAt(0).toUpperCase()}${keyword.slice(1)}: guia pratico para comparar medidas, conforto e proporcao antes de escolher um modelo para rosto largo.`;
+  return sentence.length > 160 ? sentence.slice(0, 157) + '...' : sentence;
+}
+
 function buildShortArticle(input: ArticleWriterInput): string {
   return [
     `# ${input.integracaoConteudo.tituloSugerido}`,
@@ -207,7 +229,9 @@ function buildArticleBody(input: ArticleWriterInput): string {
 }
 
 export function buildArticleDraft(input: ArticleWriterInput): ArticleDraft {
-  const conteudo = `${buildArticleBody(input)}${requiredKeywordsBlock(input)}\n\n---\n\n**Notas do Redator**\n\n- Perfil editorial sorteado: ${input.profile.nome}.\n- Linguagem: ${input.profile.linguagem}.\n- Tecnica principal: ${input.profile.tecnica}.\n- Ritmo: ${input.profile.ritmo}.\n- Briefing respeitado: dor, prova, beneficio, objecao, CTA e palavras-chave obrigatorias.`;
+  const authorBio = buildAuthorBioBlock('Calibre');
+  const seoReminder = buildSeoReminderBlock(input);
+  const conteudo = `${buildArticleBody(input)}${requiredKeywordsBlock(input)}${seoReminder}${authorBio}\n\n---\n\n**Notas do Redator**\n\n- Perfil editorial sorteado: ${input.profile.nome}.\n- Linguagem: ${input.profile.linguagem}.\n- Tecnica principal: ${input.profile.tecnica}.\n- Ritmo: ${input.profile.ritmo}.\n- Briefing respeitado: dor, prova, beneficio, objecao, CTA e palavras-chave obrigatorias.`;
 
   return {
     titulo: input.integracaoConteudo.tituloSugerido,
@@ -223,11 +247,29 @@ export function getRandomArticleWriterProfile(): ArticleWriterProfile {
   return articleWriterProfiles[index] ?? articleWriterProfiles[0];
 }
 
+export interface DraftStoragePayload {
+  titulo: string;
+  resumo: string;
+  conteudo: string;
+  tags: string;
+  topicPath: string;
+  slug: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywordPrincipal?: string;
+  keywordsSecundarias?: string;
+  coverAlt?: string;
+}
+
 export function buildDraftStoragePayload(input: {
   draft: ArticleDraft;
   topicPath: string;
   slugBase: string;
-}) {
+  writerInput?: ArticleWriterInput;
+}): DraftStoragePayload {
+  const writer = input.writerInput;
+  const metaTitle = input.draft.titulo.length > 60 ? input.draft.titulo.slice(0, 57) + '...' : input.draft.titulo;
+
   return {
     titulo: input.draft.titulo,
     resumo: input.draft.resumo,
@@ -235,5 +277,10 @@ export function buildDraftStoragePayload(input: {
     tags: input.draft.tags.join(', '),
     topicPath: input.topicPath,
     slug: slugify(input.slugBase || input.draft.titulo),
+    metaTitle,
+    metaDescription: writer ? buildSuggestedMetaDescription(writer) : input.draft.resumo,
+    keywordPrincipal: writer?.keywordPrincipal.termo ?? '',
+    keywordsSecundarias: writer ? uniqueTerms(writer.keywordsObrigatorias).join(', ') : '',
+    coverAlt: writer ? buildSuggestedCoverAlt(writer) : '',
   };
 }
