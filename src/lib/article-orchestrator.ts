@@ -1,4 +1,5 @@
 import { productCatalog, type ProductCatalogItem } from '@/lib/catalog';
+import { integrateContent, type ContentIntegratorOutput } from '@/lib/content-integrator';
 import { buildPostPath, normalizeTopicPath, slugify } from '@/lib/slug';
 
 export type EditorialSkillId =
@@ -42,6 +43,7 @@ export interface EditorialOrchestrationPlan {
   slugSugerido: string;
   postPathSugerido: string;
   produto: ProductCatalogItem;
+  integracaoConteudo: ContentIntegratorOutput;
   skills: EditorialSkill[];
   briefMarkdown: string;
 }
@@ -154,6 +156,10 @@ function listOrFallback(items: string[], fallback: string): string {
   return items.map((item) => `- ${item}`).join('\n');
 }
 
+function formatList(items: string[]): string {
+  return items.length ? items.map((item) => `- ${item}`).join('\n') : '- A definir.';
+}
+
 export function buildEditorialOrchestration(input: EditorialOrchestrationInput): EditorialOrchestrationPlan {
   const produto = productCatalog.find((item) => item.id === input.produtoId) ?? productCatalog[0];
   const normalizedSiloPath = normalizeTopicPath(input.siloPath || input.tema);
@@ -164,9 +170,15 @@ export function buildEditorialOrchestration(input: EditorialOrchestrationInput):
     : `Artigo para: ${input.tema}`;
 
   const secondaryKeywords = input.keywordsSecundarias.filter((keyword) => keyword.termo.trim());
-  const medidas = produto.medidas.map((measure) => `- ${measure.label}: ${measure.value}`).join('\n');
-  const problemas = produto.problemasResolvidos.map((problem) => `- ${problem}`).join('\n');
-  const beneficios = produto.beneficios.map((benefit) => `- ${benefit}`).join('\n');
+  const integracaoConteudo = integrateContent({
+    tema: input.tema,
+    siloPath: normalizedSiloPath,
+    persona: input.persona,
+    problemaPrincipal: input.problemaPrincipal,
+    produto,
+    keywordPrincipal: input.keywordPrincipal,
+    keywordsSecundarias: secondaryKeywords,
+  });
 
   const briefMarkdown = `# ${tituloOperacional}
 
@@ -194,30 +206,52 @@ ${secondaryKeywords.length ? secondaryKeywords.map((keyword) => `- ${formatKeywo
 Nao usar volume estimado sem fonte declarada. Fontes possiveis: Google Keyword Planner, Search Console, Semrush, Ahrefs, Ubersuggest ou ferramenta equivalente.
 
 ## 2. Integrador de Conteudo
+### Angulo editorial recomendado
+${integracaoConteudo.anguloEditorial}
+
+### Tipo de conteudo e funil
+- Tipo: ${integracaoConteudo.tipoConteudo}
+- Funil: ${integracaoConteudo.funil}
+
 ### Cruzamento editorial
-- Palavra-chave x produto: ${input.keywordPrincipal.termo || 'a definir'} x ${produto.nome}
-- Produto associado: ${produto.nome}
-- Categoria: ${produto.categoria}
-- Dor conectada: ${input.problemaPrincipal || produto.problemasResolvidos[0]}
+- Produto associado: ${integracaoConteudo.produtoAssociado}
+- Dor principal conectada: ${integracaoConteudo.dorPrincipal}
+- Prova concreta: ${integracaoConteudo.provaConcreta}
+- Beneficio central: ${integracaoConteudo.beneficioCentral}
+- Objecao principal: ${integracaoConteudo.objecaoPrincipal}
+- CTA sugerido: ${integracaoConteudo.ctaSugerido}
 
-### Medidas do produto
-${medidas}
+### Titulo operacional sugerido
+${integracaoConteudo.tituloSugerido}
 
-### Problemas que resolve
-${problemas}
+### Estrutura H2 sugerida para o Redator
+${formatList(integracaoConteudo.h2Sugeridos)}
 
-### Beneficios para explorar
-${beneficios}
+### Termos semanticamente relacionados
+${formatList(integracaoConteudo.termosSemanticos)}
+
+### Instrucoes para o Redator
+${formatList(integracaoConteudo.instrucoesRedator)}
+
+### Alertas editoriais
+${formatList(integracaoConteudo.alertas)}
 
 ## 3. Redator
 ### Direcao de narrativa
 Usar ${input.jornadaNarrativa || 'PAS ou Jornada do Cliente'} como estrutura principal.
 
+### Pacote recebido do Integrador
+- Keyword principal: ${input.keywordPrincipal.termo || input.tema || 'a definir'}
+- Angulo editorial: ${integracaoConteudo.anguloEditorial}
+- Dor principal: ${integracaoConteudo.dorPrincipal}
+- Prova concreta: ${integracaoConteudo.provaConcreta}
+- Beneficio central: ${integracaoConteudo.beneficioCentral}
+- Objecao a responder: ${integracaoConteudo.objecaoPrincipal}
+- CTA: ${integracaoConteudo.ctaSugerido}
+- Titulo sugerido: ${integracaoConteudo.tituloSugerido}
+
 ### Orientacao de texto
-- Abrir com uma situacao reconhecivel da persona.
-- Mostrar a dor antes de apresentar a solucao.
-- Integrar medidas do produto quando elas ajudarem a responder a busca.
-- Encerrar com CTA contextual para lista de espera ou produto.
+${formatList(integracaoConteudo.instrucoesRedator)}
 
 ## 4. Revisor SEO
 ### Checklist
@@ -249,6 +283,7 @@ Usar ${input.jornadaNarrativa || 'PAS ou Jornada do Cliente'} como estrutura pri
     slugSugerido: keywordSlug,
     postPathSugerido,
     produto,
+    integracaoConteudo,
     skills: editorialSkills,
     briefMarkdown,
   };
