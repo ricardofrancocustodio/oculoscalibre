@@ -23,6 +23,12 @@
 - Validar no admin se o dropdown mostra `Fonte: Google Ads Keyword Planner`; se mostrar `Fallback local`, conferir permissão do Developer Token, Customer ID e Refresh Token.
 - Considerar debounce no campo de busca se o uso ficar frequente, para reduzir chamadas à API.
 
+## Diagnóstico em 09/05/2026
+- As variáveis obrigatórias foram encontradas no `.env.local`, mas o teste OAuth retornou `unauthorized_client` antes da chamada ao Keyword Planner.
+- Esse erro indica que o `GOOGLE_ADS_REFRESH_TOKEN` provavelmente foi gerado com outro OAuth client ou que o OAuth client configurado no Google Cloud não corresponde ao `GOOGLE_ADS_CLIENT_ID`/`GOOGLE_ADS_CLIENT_SECRET` usados pelo servidor.
+- Para corrigir, gerar novamente o refresh token no OAuth Playground com `Use your own OAuth credentials` habilitado, usando exatamente o mesmo client ID e client secret do `.env.local`, escopo `https://www.googleapis.com/auth/adwords`, access type `Offline` e approval prompt `Force`.
+- Depois de corrigido localmente, sincronizar as variáveis na Vercel e redeployar.
+
 ---
 
 _Registro automático de implementação pelo assistente GitHub Copilot._

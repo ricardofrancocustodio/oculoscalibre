@@ -52,6 +52,27 @@ function formatVolume(value: string | number | undefined): string {
   return String(numericValue);
 }
 
+function parseVolume(value: string): number {
+  const normalizedValue = value.trim().toLowerCase();
+  if (!normalizedValue) return 0;
+  if (normalizedValue.endsWith('k')) {
+    return Number(normalizedValue.slice(0, -1).replace(',', '.')) * 1000;
+  }
+  return Number(normalizedValue.replace(/\D/g, '')) || 0;
+}
+
+function formatTokenError(data: GoogleAdsTokenResponse): string {
+  if (data.error === 'unauthorized_client') {
+    return 'OAuth recusou o refresh token. Gere um novo refresh token usando exatamente o mesmo GOOGLE_ADS_CLIENT_ID e GOOGLE_ADS_CLIENT_SECRET configurados no .env.local.';
+  }
+
+  if (data.error === 'invalid_grant') {
+    return 'Refresh token invalido, expirado ou revogado. Gere um novo refresh token com o escopo https://www.googleapis.com/auth/adwords.';
+  }
+
+  return data.error_description || data.error || 'Falha ao obter access token do Google Ads.';
+}
+
 function mapCompetition(value: GoogleAdsCompetition): KeywordSuggestion['dificuldade'] {
   if (value === 'LOW') return 'Baixa';
   if (value === 'MEDIUM') return 'Media';
@@ -88,7 +109,7 @@ async function getAccessToken(): Promise<string> {
 
   const data = await response.json() as GoogleAdsTokenResponse;
   if (!response.ok || !data.access_token) {
-    throw new Error(data.error_description || data.error || 'Falha ao obter access token do Google Ads.');
+    throw new Error(formatTokenError(data));
   }
 
   return data.access_token;
@@ -140,7 +161,7 @@ async function fetchGoogleAdsKeywordIdeas(query: string): Promise<KeywordSuggest
       fonte: 'Google Ads Keyword Planner',
     }))
     .filter((suggestion) => suggestion.termo)
-    .sort((left, right) => Number(right.volumeMensal.replace(/k$/, '000').replace(/\D/g, '')) - Number(left.volumeMensal.replace(/k$/, '000').replace(/\D/g, '')));
+    .sort((left, right) => parseVolume(right.volumeMensal) - parseVolume(left.volumeMensal));
 }
 
 export async function searchKeywordPlanner(query: string): Promise<KeywordPlannerSearchResult> {
