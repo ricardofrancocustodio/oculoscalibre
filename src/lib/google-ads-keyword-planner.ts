@@ -63,11 +63,11 @@ function parseVolume(value: string): number {
 
 function formatTokenError(data: GoogleAdsTokenResponse): string {
   if (data.error === 'unauthorized_client') {
-    return 'OAuth recusou o refresh token. Gere um novo refresh token usando exatamente o mesmo GOOGLE_ADS_CLIENT_ID e GOOGLE_ADS_CLIENT_SECRET configurados no .env.local.';
+    return 'Credenciais OAuth do Google Ads invalidas. Gere um novo refresh token usando o mesmo Client ID e Client Secret do servidor.';
   }
 
   if (data.error === 'invalid_grant') {
-    return 'Refresh token invalido, expirado ou revogado. Gere um novo refresh token com o escopo https://www.googleapis.com/auth/adwords.';
+    return 'Refresh token invalido, expirado ou revogado. Gere um novo token com o escopo do Google Ads.';
   }
 
   return data.error_description || data.error || 'Falha ao obter access token do Google Ads.';

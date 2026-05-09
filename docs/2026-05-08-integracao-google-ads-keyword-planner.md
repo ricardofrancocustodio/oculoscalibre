@@ -29,6 +29,10 @@
 - Para corrigir, gerar novamente o refresh token no OAuth Playground com `Use your own OAuth credentials` habilitado, usando exatamente o mesmo client ID e client secret do `.env.local`, escopo `https://www.googleapis.com/auth/adwords`, access type `Offline` e approval prompt `Force`.
 - Depois de corrigido localmente, sincronizar as variáveis na Vercel e redeployar.
 
+## Ajuste visual em 09/05/2026
+- A mensagem de falha OAuth exibida no admin foi encurtada para não ocupar todo o dropdown da Skill 1.
+- O dropdown do Keyword Planner passou a quebrar mensagens longas com `overflowWrap: 'anywhere'`, mantendo o fallback local utilizável enquanto as credenciais são corrigidas.
+
 ---
 
 _Registro automático de implementação pelo assistente GitHub Copilot._

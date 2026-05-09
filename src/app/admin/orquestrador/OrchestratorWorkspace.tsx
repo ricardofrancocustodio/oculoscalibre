@@ -501,6 +501,7 @@ const dropdownWarningStyle: React.CSSProperties = {
   borderBottom: '1px solid rgba(255,255,255,0.08)',
   fontSize: '12px',
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 };
 
 const dropdownSourceStyle: React.CSSProperties = {
