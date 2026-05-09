@@ -99,24 +99,33 @@ export function breadcrumbListSchema(crumbs: BreadcrumbCrumb[]) {
   };
 }
 
-export function articleSchema(post: Post, breadcrumbs: BreadcrumbCrumb[]) {
-  const url = absoluteUrl(`/blog/${post.slug}`);
+export function articleSchema(post: Post) {
+  const canonical = post.canonical_url?.trim() || `/blog/${post.slug}`;
+  const url = absoluteUrl(canonical);
+  const headline = post.meta_title?.trim() || post.titulo;
+  const description = post.meta_description?.trim() || post.resumo;
+  const ogImage = post.og_image_url?.trim() || post.capa_url;
+  const keywordSet = [post.keyword_principal, ...(post.keywords_secundarias ?? []), ...(post.tags ?? [])]
+    .map((value) => value?.toString().trim())
+    .filter((value): value is string => Boolean(value));
+  const keywords = Array.from(new Set(keywordSet));
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Article',
     '@id': `${url}#article`,
-    headline: post.titulo,
-    description: post.resumo,
+    headline,
+    description,
     url,
-    image: post.capa_url ? [post.capa_url] : undefined,
+    image: ogImage ? [ogImage] : undefined,
     author: {
       '@type': 'Person',
       name: post.autor,
     },
     publisher: { '@id': `${absoluteUrl('/')}#organization` },
     datePublished: post.published_at ?? post.created_at,
-    dateModified: post.updated_at,
-    keywords: post.tags?.length ? post.tags.join(', ') : undefined,
+    dateModified: post.revised_at ?? post.updated_at,
+    keywords: keywords.length ? keywords.join(', ') : undefined,
     inLanguage: 'pt-BR',
     isPartOf: { '@id': `${absoluteUrl('/')}#website` },
     mainEntityOfPage: {

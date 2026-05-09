@@ -270,8 +270,6 @@ export function LandingClient() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
-
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
@@ -286,11 +284,11 @@ export function LandingClient() {
         html, body {
           background: var(--dark);
           color: var(--text);
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-dm), sans-serif;
           overflow-x: hidden;
         }
 
-        .font-display { font-family: 'Bebas Neue', sans-serif; }
+        .font-display { font-family: var(--font-bebas), sans-serif; }
 
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(24px); }
@@ -339,7 +337,7 @@ export function LandingClient() {
           align-items: center;
         }
         .nav-logo {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: 24px;
           letter-spacing: 0.15em;
           color: white;
@@ -506,7 +504,7 @@ export function LandingClient() {
         }
 
         .hero-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: clamp(56px, 8vw, 88px);
           line-height: 0.95;
           letter-spacing: 0.02em;
@@ -580,7 +578,7 @@ export function LandingClient() {
           color: var(--lime);
         }
         .seats-count {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: 22px;
           color: white;
           letter-spacing: 0.02em;
@@ -660,7 +658,7 @@ export function LandingClient() {
           text-align: center;
         }
         .problem-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: clamp(36px, 6vw, 64px);
           color: white;
           margin-bottom: 20px;
@@ -692,7 +690,7 @@ export function LandingClient() {
           text-align: center;
         }
         .stat-number {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: 48px;
           color: var(--lime);
           line-height: 1;
@@ -712,7 +710,7 @@ export function LandingClient() {
           text-align: center;
         }
         .specs-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: clamp(32px, 5vw, 52px);
           color: white;
           margin-bottom: 32px;
@@ -743,7 +741,7 @@ export function LandingClient() {
           text-align: center;
         }
         .cta-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: clamp(40px, 7vw, 72px);
           color: #0A0A0A;
           margin-bottom: 12px;
@@ -766,7 +764,7 @@ export function LandingClient() {
           text-align: center;
         }
         .faq-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: clamp(32px, 5vw, 48px);
           color: white;
           margin-bottom: 32px;
@@ -814,7 +812,7 @@ export function LandingClient() {
           text-align: center;
         }
         .footer-logo {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: 28px;
           letter-spacing: 0.1em;
           color: white;
@@ -877,7 +875,7 @@ export function LandingClient() {
           color: white;
         }
         .modal-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-bebas), sans-serif;
           font-size: 40px;
           color: white;
           line-height: 1;

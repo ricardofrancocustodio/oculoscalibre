@@ -36,27 +36,32 @@ export async function generateMetadata({
   const post = await getPostBySlug(requestedPath);
 
   if (post?.publicado) {
-    const canonicalPath = `/blog/${post.slug}`;
+    const canonicalPath = post.canonical_url?.trim() || `/blog/${post.slug}`;
+    const ogImage = post.og_image_url?.trim() || post.capa_url;
+    const effectiveTitle = post.meta_title?.trim() || post.titulo;
+    const effectiveDescription = post.meta_description?.trim() || post.resumo;
+
     return {
-      title: post.titulo,
-      description: post.resumo,
+      title: effectiveTitle,
+      description: effectiveDescription,
       alternates: { canonical: canonicalPath },
+      robots: post.noindex ? { index: false, follow: false } : undefined,
       openGraph: {
         type: 'article',
         url: canonicalPath,
-        title: post.titulo,
-        description: post.resumo,
-        images: post.capa_url ? [{ url: post.capa_url, alt: post.titulo }] : undefined,
+        title: effectiveTitle,
+        description: effectiveDescription,
+        images: ogImage ? [{ url: ogImage, alt: post.cover_alt?.trim() || post.titulo }] : undefined,
         publishedTime: post.published_at ?? undefined,
-        modifiedTime: post.updated_at,
+        modifiedTime: post.revised_at ?? post.updated_at,
         authors: [post.autor],
         tags: post.tags,
       },
       twitter: {
         card: 'summary_large_image',
-        title: post.titulo,
-        description: post.resumo,
-        images: post.capa_url ? [post.capa_url] : undefined,
+        title: effectiveTitle,
+        description: effectiveDescription,
+        images: ogImage ? [ogImage] : undefined,
       },
     };
   }
@@ -234,14 +239,15 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
   ];
 
   const articlePayload = [
-    articleSchema(post, breadcrumbCrumbs),
+    articleSchema(post),
     breadcrumbListSchema(breadcrumbCrumbs),
   ];
 
+  const freshnessDate = post.revised_at ?? post.updated_at;
   const wasUpdated =
-    Boolean(post.updated_at) &&
+    Boolean(freshnessDate) &&
     Boolean(post.published_at) &&
-    new Date(post.updated_at).getTime() - new Date(post.published_at as string).getTime() > 60_000;
+    new Date(freshnessDate).getTime() - new Date(post.published_at as string).getTime() > 60_000;
 
   return (
     <BlogPageChrome
@@ -269,7 +275,7 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
                 <span>{view.publishedLabel ?? 'Sem data'}</span>
                 <span>{view.readingTime} min de leitura</span>
                 <span>{view.autor}</span>
-                {wasUpdated ? <span>Atualizado em {formatDateBR(post.updated_at)}</span> : null}
+                {wasUpdated ? <span>Atualizado em {formatDateBR(freshnessDate)}</span> : null}
               </div>
               {view.capa_url ? (
                 <div style={coverWrapperStyle}>
