@@ -27,6 +27,24 @@ function emptyKeyword(): KeywordCandidate {
   };
 }
 
+function normalizeTerm(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function suggestionToKeyword(suggestion: KeywordSuggestion): KeywordCandidate {
+  return {
+    termo: suggestion.termo,
+    intencao: suggestion.intencao,
+    volumeMensal: suggestion.volumeMensal,
+    fonteVolume: suggestion.fonte,
+    dificuldade: suggestion.dificuldade,
+  };
+}
+
 export function OrchestratorWorkspace() {
   const [tema, setTema] = useState('oculos de sol para rosto largo');
   const [siloPath, setSiloPath] = useState('formatos-de-oculos/rosto-largo');
@@ -66,60 +84,52 @@ export function OrchestratorWorkspace() {
   }), [tema, siloPath, produtoId, persona, problemaPrincipal, jornadaNarrativa, keywordPrincipal, keywordsSecundarias]);
 
   async function handlePlannerSearch(q: string) {
-    setPlannerQuery(q);
+    const query = q.trim();
+
+    setPlannerQuery(query);
     setPlannerWarning('');
     setPlannerSource(null);
 
-    if (q.trim().length < 2) {
+    if (query.length < 2) {
       setPlannerResults([]);
       setPlannerLoading(false);
       return;
     }
 
+    setKeywordPrincipal({
+      termo: query,
+      intencao: 'a classificar pelo integrador',
+      volumeMensal: '',
+      fonteVolume: 'termo buscado no orquestrador',
+      dificuldade: '',
+    });
+
     setPlannerLoading(true);
     try {
-      const response = await fetch(`/api/admin/keyword-planner?q=${encodeURIComponent(q)}`, {
+      const response = await fetch(`/api/admin/keyword-planner?q=${encodeURIComponent(query)}`, {
         cache: 'no-store',
       });
       const data = await response.json() as KeywordPlannerResponse | { error?: string };
 
       if (!response.ok) {
         setPlannerResults([]);
+        setKeywordsSecundarias([]);
         setPlannerWarning('error' in data && data.error ? data.error : 'Nao foi possivel consultar o Keyword Planner.');
         return;
       }
 
       const result = data as KeywordPlannerResponse;
-      setPlannerResults(result.suggestions ?? []);
+  const relatedSuggestions = (result.suggestions ?? []).filter((suggestion) => normalizeTerm(suggestion.termo) !== normalizeTerm(query));
+  setPlannerResults(relatedSuggestions);
+  setKeywordsSecundarias(relatedSuggestions.map(suggestionToKeyword));
       setPlannerSource(result.source);
       setPlannerWarning(result.warning ?? '');
     } catch {
       setPlannerResults([]);
+      setKeywordsSecundarias([]);
       setPlannerWarning('Erro de rede ao consultar o Keyword Planner.');
     } finally {
       setPlannerLoading(false);
-    }
-  }
-
-  function applyKeyword(suggestion: KeywordSuggestion, type: 'primary' | 'secondary') {
-    const candidate: KeywordCandidate = {
-      termo: suggestion.termo,
-      intencao: suggestion.intencao,
-      volumeMensal: suggestion.volumeMensal,
-      fonteVolume: suggestion.fonte,
-      dificuldade: suggestion.dificuldade,
-    };
-
-    if (type === 'primary') {
-      setKeywordPrincipal(candidate);
-    } else {
-      setKeywordsSecundarias((current) => {
-        const firstEmptyIndex = current.findIndex(k => !k.termo);
-        if (firstEmptyIndex !== -1) {
-          return current.map((k, i) => i === firstEmptyIndex ? candidate : k);
-        }
-        return [...current, candidate];
-      });
     }
   }
 
@@ -169,7 +179,7 @@ export function OrchestratorWorkspace() {
         <div style={keywordResearchHeaderStyle}>
           <div>
             <h2 style={{ ...subtitleStyle, margin: 0 }}>Keywords Researcher</h2>
-            <p style={hintStyle}>Busque uma palavra-chave base para listar caudas longas relacionadas. Depois aplique a sugestao escolhida ao briefing.</p>
+            <p style={hintStyle}>Busque a palavra-chave principal do artigo. As caudas longas retornadas entram automaticamente como termos obrigatorios para o Redator.</p>
           </div>
           <form
             style={keywordSearchFormStyle}
@@ -202,23 +212,22 @@ export function OrchestratorWorkspace() {
               <table style={keywordTableStyle}>
                 <thead>
                   <tr>
-                    <th style={tableHeaderStyle}>Cauda longa relacionada</th>
+                    <th style={tableHeaderStyle}>Palavra-chave relacionada obrigatoria</th>
                     <th style={tableHeaderStyle}>Volume</th>
                     <th style={tableHeaderStyle}>Dificuldade</th>
                     <th style={tableHeaderStyle}>Intencao</th>
                     <th style={tableHeaderStyle}>Fonte</th>
-                    <th style={tableHeaderStyle}>Aplicar</th>
                   </tr>
                 </thead>
                 <tbody>
                   {plannerLoading && (
                     <tr>
-                      <td colSpan={6} style={tableEmptyStyle}>Consultando sugestoes relacionadas...</td>
+                      <td colSpan={5} style={tableEmptyStyle}>Consultando sugestoes relacionadas...</td>
                     </tr>
                   )}
                   {!plannerLoading && plannerResults.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={tableEmptyStyle}>Nenhuma cauda longa encontrada para esta busca.</td>
+                      <td colSpan={5} style={tableEmptyStyle}>Nenhuma cauda longa encontrada para esta busca.</td>
                     </tr>
                   )}
                   {!plannerLoading && plannerResults.map((suggestion) => (
@@ -228,10 +237,6 @@ export function OrchestratorWorkspace() {
                       <td style={tableCellStyle}>{suggestion.dificuldade}</td>
                       <td style={tableCellStyle}>{suggestion.intencao}</td>
                       <td style={tableCellStyle}>{suggestion.fonte}</td>
-                      <td style={tableActionsStyle}>
-                        <button onClick={() => applyKeyword(suggestion, 'primary')} style={tableButtonStyle}>Principal</button>
-                        <button onClick={() => applyKeyword(suggestion, 'secondary')} style={tableButtonGhostStyle}>Secundaria</button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -491,7 +496,7 @@ const tableScrollStyle: React.CSSProperties = {
 
 const keywordTableStyle: React.CSSProperties = {
   width: '100%',
-  minWidth: '860px',
+  minWidth: '720px',
   borderCollapse: 'collapse',
 };
 
@@ -521,13 +526,6 @@ const tableCellStrongStyle: React.CSSProperties = {
   fontWeight: 800,
 };
 
-const tableActionsStyle: React.CSSProperties = {
-  ...tableCellStyle,
-  display: 'flex',
-  gap: '8px',
-  whiteSpace: 'nowrap',
-};
-
 const tableEmptyStyle: React.CSSProperties = {
   color: 'rgba(255,255,255,0.58)',
   fontSize: '13px',
@@ -535,20 +533,3 @@ const tableEmptyStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-const tableButtonStyle: React.CSSProperties = {
-  background: '#C8F135',
-  color: '#0A0A0A',
-  border: 'none',
-  borderRadius: '8px',
-  padding: '8px 10px',
-  fontSize: '12px',
-  fontWeight: 900,
-  cursor: 'pointer',
-};
-
-const tableButtonGhostStyle: React.CSSProperties = {
-  ...tableButtonStyle,
-  background: 'transparent',
-  color: '#C8F135',
-  border: '1px solid rgba(200,241,53,0.45)',
-};

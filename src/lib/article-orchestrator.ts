@@ -54,7 +54,7 @@ export const editorialSkills: EditorialSkill[] = [
     nome: 'Keywords Researcher',
     objetivo: 'Encontrar palavras-chave de cauda longa relacionadas ao tema, considerando volume real de busca, fonte do dado e intenção de busca.',
     entrada: ['tema', 'silo alvo', 'persona', 'produto ou categoria'],
-    saida: ['keyword principal', 'keywords secundarias', 'volume mensal real', 'fonte do volume', 'intencao de busca'],
+    saida: ['keyword principal', 'palavras-chave relacionadas obrigatorias', 'volume mensal real', 'fonte do volume', 'intencao de busca'],
     criterioAceite: [
       'Nao estimar volume sem fonte externa declarada.',
       'Priorizar termos de cauda longa com intencao clara.',
@@ -199,11 +199,14 @@ Buscar palavras-chave de cauda longa relacionadas ao tema com volume real e inte
 ### Keyword principal
 - ${formatKeyword(input.keywordPrincipal)}
 
-### Keywords secundarias
+### Palavras-chave relacionadas obrigatorias
 ${secondaryKeywords.length ? secondaryKeywords.map((keyword) => `- ${formatKeyword(keyword)}`).join('\n') : '- Aguardando pesquisa com fonte de volume real.'}
 
 ### Regra de qualidade
 Nao usar volume estimado sem fonte declarada. Fontes possiveis: Google Keyword Planner, Search Console, Semrush, Ahrefs, Ubersuggest ou ferramenta equivalente.
+
+### Regra para o Redator
+As palavras-chave relacionadas devem ser citadas naturalmente no texto final. Elas nao substituem a keyword principal; funcionam como termos de apoio semantico obrigatorios.
 
 ## 2. Integrador de Conteudo
 ### Angulo editorial recomendado
@@ -249,6 +252,9 @@ Usar ${input.jornadaNarrativa || 'PAS ou Jornada do Cliente'} como estrutura pri
 - Objecao a responder: ${integracaoConteudo.objecaoPrincipal}
 - CTA: ${integracaoConteudo.ctaSugerido}
 - Titulo sugerido: ${integracaoConteudo.tituloSugerido}
+
+### Palavras-chave que devem aparecer no texto
+${secondaryKeywords.length ? secondaryKeywords.map((keyword) => `- ${keyword.termo}`).join('\n') : '- Aguardando lista de caudas longas relacionadas.'}
 
 ### Orientacao de texto
 ${formatList(integracaoConteudo.instrucoesRedator)}
