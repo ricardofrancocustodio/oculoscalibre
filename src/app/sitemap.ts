@@ -2,6 +2,8 @@ import type { MetadataRoute } from 'next';
 import { getPublishedPosts } from '@/lib/db';
 import { parsePostPath } from '@/lib/slug';
 
+export const dynamic = 'force-dynamic';
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://oculoscalibre.vercel.app';
 
 function absoluteUrl(path: string): string {
