@@ -123,12 +123,6 @@ export function OrchestratorWorkspace() {
     }
   }
 
-  function updateSecondaryKeyword(index: number, patch: Partial<KeywordCandidate>) {
-    setKeywordsSecundarias((current) => current.map((keyword, itemIndex) => (
-      itemIndex === index ? { ...keyword, ...patch } : keyword
-    )));
-  }
-
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
       <section style={panelStyle}>
@@ -246,21 +240,6 @@ export function OrchestratorWorkspace() {
           </div>
         )}
 
-        <div style={keywordGridStyle}>
-          <KeywordFields
-            label="Keyword principal"
-            keyword={keywordPrincipal}
-            onChange={(patch) => setKeywordPrincipal((current) => ({ ...current, ...patch }))}
-          />
-          {keywordsSecundarias.map((keyword, index) => (
-            <KeywordFields
-              key={index}
-              label={`Keyword secundaria ${index + 1}`}
-              keyword={keyword}
-              onChange={(patch) => updateSecondaryKeyword(index, patch)}
-            />
-          ))}
-        </div>
       </section>
 
       <section style={skillsGridStyle}>
@@ -287,29 +266,6 @@ export function OrchestratorWorkspace() {
         </div>
         <textarea readOnly value={plan.briefMarkdown} style={briefStyle} />
       </section>
-    </div>
-  );
-}
-
-function KeywordFields({
-  label,
-  keyword,
-  onChange,
-}: {
-  label: string;
-  keyword: KeywordCandidate;
-  onChange: (patch: Partial<KeywordCandidate>) => void;
-}) {
-  return (
-    <div style={keywordPanelStyle}>
-      <h3 style={smallTitleStyle}>{label}</h3>
-      <input placeholder="termo" value={keyword.termo} onChange={(event) => onChange({ termo: event.target.value })} style={inputStyle} />
-      <input placeholder="intencao de busca" value={keyword.intencao} onChange={(event) => onChange({ intencao: event.target.value })} style={inputStyle} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-        <input placeholder="volume mensal real" value={keyword.volumeMensal} onChange={(event) => onChange({ volumeMensal: event.target.value })} style={inputStyle} />
-        <input placeholder="dificuldade" value={keyword.dificuldade} onChange={(event) => onChange({ dificuldade: event.target.value })} style={inputStyle} />
-      </div>
-      <input placeholder="fonte do volume" value={keyword.fonteVolume} onChange={(event) => onChange({ fonteVolume: event.target.value })} style={inputStyle} />
     </div>
   );
 }
@@ -392,27 +348,6 @@ const hintStyle: React.CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.6,
   margin: '8px 0 18px',
-};
-
-const keywordGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-  gap: '14px',
-};
-
-const keywordPanelStyle: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '14px',
-  padding: '16px',
-  display: 'grid',
-  gap: '10px',
-};
-
-const smallTitleStyle: React.CSSProperties = {
-  margin: 0,
-  color: '#fff',
-  fontSize: '14px',
 };
 
 const skillsGridStyle: React.CSSProperties = {

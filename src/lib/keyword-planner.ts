@@ -21,19 +21,45 @@ const MOCK_KEYWORDS: KeywordSuggestion[] = [
   { termo: 'tamanho de oculos 60mm', volumeMensal: '120', dificuldade: 'Baixa', intencao: 'transacional', fonte: 'Mock Keyword Planner' },
 ];
 
+const STOPWORDS = new Set(['a', 'as', 'com', 'da', 'de', 'do', 'dos', 'e', 'em', 'o', 'os', 'para', 'por', 'um', 'uma']);
+
+function tokenize(value: string): string[] {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/\W+/)
+    .filter((token) => token.length > 2 && !STOPWORDS.has(token));
+}
+
 export function searchMockKeywords(query: string): KeywordSuggestion[] {
   if (!query) return [];
   const normalizedQuery = query.toLowerCase().trim();
+  const queryTokens = tokenize(normalizedQuery);
 
   return MOCK_KEYWORDS
-    .filter(kw => kw.termo.toLowerCase().includes(normalizedQuery))
+    .map((keyword) => {
+      const normalizedTerm = keyword.termo.toLowerCase();
+      const termTokens = tokenize(normalizedTerm);
+      const tokenMatches = queryTokens.filter((token) => termTokens.includes(token)).length;
+      const exactPhraseMatch = normalizedTerm.includes(normalizedQuery);
+      const startsWithQuery = normalizedTerm.startsWith(normalizedQuery);
+
+      return {
+        keyword,
+        score: (startsWithQuery ? 30 : 0) + (exactPhraseMatch ? 20 : 0) + tokenMatches,
+      };
+    })
+    .filter(({ score }) => score > 0)
     .sort((a, b) => {
-      const aStarts = a.termo.toLowerCase().startsWith(normalizedQuery);
-      const bStarts = b.termo.toLowerCase().startsWith(normalizedQuery);
+      if (b.score !== a.score) return b.score - a.score;
+      const aStarts = a.keyword.termo.toLowerCase().startsWith(normalizedQuery);
+      const bStarts = b.keyword.termo.toLowerCase().startsWith(normalizedQuery);
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
       return 0;
-    });
+    })
+    .map(({ keyword }) => keyword);
 }
 
 export const searchKeywords = searchMockKeywords;
