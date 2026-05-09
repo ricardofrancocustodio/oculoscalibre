@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { filterPostsForTopic, getRelatedPosts, toBlogPostView } from '@/lib/blog';
@@ -17,6 +18,78 @@ import {
 } from '../_components';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const requestedPath = slug.join('/');
+  const post = await getPostBySlug(requestedPath);
+
+  if (post?.publicado) {
+    const canonicalPath = `/blog/${post.slug}`;
+    return {
+      title: post.titulo,
+      description: post.resumo,
+      alternates: { canonical: canonicalPath },
+      openGraph: {
+        type: 'article',
+        url: canonicalPath,
+        title: post.titulo,
+        description: post.resumo,
+        images: post.capa_url ? [{ url: post.capa_url, alt: post.titulo }] : undefined,
+        publishedTime: post.published_at ?? undefined,
+        modifiedTime: post.updated_at,
+        authors: [post.autor],
+        tags: post.tags,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: post.titulo,
+        description: post.resumo,
+        images: post.capa_url ? [post.capa_url] : undefined,
+      },
+    };
+  }
+
+  const topicPosts = await getPublishedPosts();
+  const filtered = filterPostsForTopic(topicPosts, requestedPath);
+  if (filtered.length === 0) {
+    return {
+      title: 'Tópico não encontrado',
+      description: 'Esta página de blog não está disponível.',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const segments = requestedPath.split('/').filter(Boolean);
+  const topicLabel = humanizeSlugSegment(segments[segments.length - 1] ?? requestedPath);
+  const isPillar = segments.length === 1;
+  const title = isPillar
+    ? `${topicLabel} — pillar page com guias e artigos`
+    : `${topicLabel} — subtema do silo`;
+  const description = `${filtered.length} artigo${filtered.length === 1 ? '' : 's'} sobre ${topicLabel.toLowerCase()} no blog Calibre. Conteúdos conectados dentro do mesmo silo, com pillar page e subtemas.`;
+  const canonicalPath = `/blog/${requestedPath}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalPath },
+    openGraph: {
+      type: 'website',
+      url: canonicalPath,
+      title,
+      description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  };
+}
 
 export default async function BlogEntryPage({
   params,

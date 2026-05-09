@@ -1,9 +1,30 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getPublishedPosts } from '@/lib/db';
 import { getFlatPosts, listSilos, toBlogPostView } from '@/lib/blog';
 import { BlogPageChrome, BlogPostCard, EmptyState, SectionTitle, SiloCard, Stack, contentPanelStyle } from './_components';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Blog Calibre — guias sobre óculos para rosto largo',
+  description:
+    'Conteúdos editoriais organizados em silos sobre medidas, conforto e escolha de óculos para rostos com têmpora a partir de 145mm. Pillar pages, subtemas e artigos conectados.',
+  alternates: { canonical: '/blog' },
+  openGraph: {
+    type: 'website',
+    url: '/blog',
+    title: 'Blog Calibre — guias sobre óculos para rosto largo',
+    description:
+      'Pillar pages e subtemas sobre medidas, encaixe e escolha de óculos para rosto largo. Arquitetura de silos com interlinking interno.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog Calibre — guias sobre óculos para rosto largo',
+    description:
+      'Pillar pages e subtemas sobre medidas, encaixe e escolha de óculos para rosto largo.',
+  },
+};
 
 export default async function BlogHomePage() {
   const posts = await getPublishedPosts();
