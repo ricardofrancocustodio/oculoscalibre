@@ -1,11 +1,18 @@
 import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { filterPostsForTopic, getRelatedPosts, toBlogPostView } from '@/lib/blog';
 import { getPostBySlug, getPublishedPosts, type Post } from '@/lib/db';
 import { MarkdownRenderer } from '@/lib/markdown';
-import { humanizeSlugSegment } from '@/lib/slug';
+import { formatDateBR, humanizeSlugSegment } from '@/lib/slug';
+import {
+  articleSchema,
+  breadcrumbListSchema,
+  collectionPageSchema,
+  jsonLdScript,
+} from '@/lib/json-ld';
 import {
   BlogPageChrome,
   BlogPostCard,
@@ -124,6 +131,24 @@ function TopicPage({ topicPath, posts }: { topicPath: ReturnType<typeof filterPo
   const parentPath = segments.length > 1 ? segments.slice(0, -1).join('/') : null;
   const childTopics = collectImmediateChildTopics(posts, segments);
 
+  const breadcrumbCrumbs = [
+    { name: 'Blog', href: '/blog' },
+    ...segments.map((segment, index) => ({
+      name: humanizeSlugSegment(segment),
+      href: `/blog/${segments.slice(0, index + 1).join('/')}`,
+    })),
+  ];
+
+  const collectionPayload = [
+    collectionPageSchema({
+      url: `/blog/${topicPath}`,
+      name: title,
+      description: `Página pilar do tema ${title.toLowerCase()} com ${posts.length} artigo${posts.length === 1 ? '' : 's'} relacionados.`,
+      itemHrefs: posts.map((post) => post.href),
+    }),
+    breadcrumbListSchema(breadcrumbCrumbs),
+  ];
+
   return (
     <BlogPageChrome
       eyebrow={segments.length === 1 ? 'Pillar page' : 'Subtema do silo'}
@@ -190,6 +215,10 @@ function TopicPage({ topicPath, posts }: { topicPath: ReturnType<typeof filterPo
           }
         />
       </Stack>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(collectionPayload) }}
+      />
     </BlogPageChrome>
   );
 }
@@ -197,6 +226,22 @@ function TopicPage({ topicPath, posts }: { topicPath: ReturnType<typeof filterPo
 function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
   const view = toBlogPostView(post);
   const relatedPosts = getRelatedPosts(posts, post.slug, 3);
+
+  const breadcrumbCrumbs = [
+    { name: 'Blog', href: '/blog' },
+    ...view.breadcrumbs.map((crumb) => ({ name: crumb.label, href: crumb.href })),
+    { name: view.titulo, href: view.href },
+  ];
+
+  const articlePayload = [
+    articleSchema(post, breadcrumbCrumbs),
+    breadcrumbListSchema(breadcrumbCrumbs),
+  ];
+
+  const wasUpdated =
+    Boolean(post.updated_at) &&
+    Boolean(post.published_at) &&
+    new Date(post.updated_at).getTime() - new Date(post.published_at as string).getTime() > 60_000;
 
   return (
     <BlogPageChrome
@@ -224,10 +269,19 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
                 <span>{view.publishedLabel ?? 'Sem data'}</span>
                 <span>{view.readingTime} min de leitura</span>
                 <span>{view.autor}</span>
+                {wasUpdated ? <span>Atualizado em {formatDateBR(post.updated_at)}</span> : null}
               </div>
               {view.capa_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={view.capa_url} alt={view.titulo} style={coverStyle} />
+                <div style={coverWrapperStyle}>
+                  <Image
+                    src={view.capa_url}
+                    alt={view.titulo}
+                    fill
+                    sizes="(min-width: 1024px) 720px, 100vw"
+                    style={{ objectFit: 'cover' }}
+                    priority
+                  />
+                </div>
               ) : null}
               <article style={articleBodyStyle}>
                 <MarkdownRenderer source={view.conteudo_md} />
@@ -288,6 +342,10 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
           )}
         </section>
       </Stack>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(articlePayload) }}
+      />
     </BlogPageChrome>
   );
 }
@@ -380,12 +438,13 @@ const articleMetaRowStyle: CSSProperties = {
   letterSpacing: '0.08em',
 };
 
-const coverStyle: CSSProperties = {
+const coverWrapperStyle: CSSProperties = {
+  position: 'relative',
   width: '100%',
-  borderRadius: '22px',
+  aspectRatio: '16 / 9',
   marginTop: '20px',
-  objectFit: 'cover' as const,
-  maxHeight: '420px',
+  borderRadius: '22px',
+  overflow: 'hidden',
   border: '1px solid rgba(79, 55, 38, 0.12)',
 };
 

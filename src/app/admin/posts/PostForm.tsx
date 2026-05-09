@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import Image from 'next/image';
 import { MarkdownPreview } from './MarkdownPreview';
 import { normalizeTopicPath, parsePostPath } from '@/lib/slug';
 
@@ -165,11 +166,13 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
       <Field label="Capa (imagem)">
         {initial?.capa_url && (
           <div style={{ marginBottom: '8px' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={initial.capa_url}
               alt="Capa atual"
-              style={{ maxWidth: '240px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+              width={240}
+              height={126}
+              style={{ width: '240px', height: 'auto', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+              unoptimized
             />
             <label style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
               <input type="checkbox" name="remover_capa" /> Remover capa atual
