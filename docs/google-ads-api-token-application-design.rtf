@@ -1,0 +1,55 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\fs24
+\b Google Ads API Tool Design Documentation - Calibre / Wozza\b0\par
+\par
+\b 1. Product and Business Overview\b0\par
+Calibre operates an e-commerce and lead generation website for eyewear products, with a focus on helping users find sunglasses and frames that fit different face shapes and measurements. Google Ads is used to acquire qualified traffic and to understand search intent around eyewear products.\par
+\par
+Primary website: https://oculoscalibre.com.br\par
+Admin tool URL: https://oculoscalibre.com.br/admin/orquestrador\par
+\par
+\b 2. Tool Purpose\b0\par
+The Google Ads API integration is used only inside an authenticated internal admin area. The tool supports editorial and SEO planning by querying Google Ads Keyword Planning Services for keyword ideas, average monthly search volume, competition, and search intent signals.\par
+\par
+The tool does not create, edit, pause, delete, or otherwise manage Google Ads campaigns, ad groups, ads, budgets, audiences, conversions, or remarketing lists.\par
+\par
+\b 3. Google Ads API Capabilities Used\b0\par
+The tool uses Keyword Planning Services, specifically keyword idea generation through the Google Ads API. The API response is used to populate an internal content briefing workflow called Keywords Researcher.\par
+\par
+The expected API method is generateKeywordIdeas. The implementation uses OAuth 2.0, a Google Ads developer token, a manager account login customer ID, and a customer ID authorized for the account.\par
+\par
+\b 4. Users and Access Control\b0\par
+Access is limited to internal users only. The tool is not available to the public or to external clients. It is located behind the website admin authentication system. Only authorized administrators with the admin password can access the orchestrator page and trigger keyword research requests.\par
+\par
+\b 5. Data Flow\b0\par
+1. An internal admin signs into the website admin area.\par
+2. The admin enters a seed keyword in the Keywords Researcher field.\par
+3. The browser calls a protected server-side route: /api/admin/keyword-planner.\par
+4. The server validates the admin authentication cookie.\par
+5. The server exchanges the stored refresh token for an OAuth access token.\par
+6. The server calls the Google Ads API Keyword Planning endpoint.\par
+7. The server returns normalized keyword suggestions to the admin UI.\par
+8. The admin may apply a keyword suggestion to an editorial briefing.\par
+\par
+No Google Ads OAuth credentials, developer token, refresh token, client secret, or access token are exposed in browser JavaScript. All credentials are stored as server-side environment variables.\par
+\par
+\b 6. Data Storage and Retention\b0\par
+The tool does not permanently store raw Google Ads API responses. Keyword suggestions are displayed to the internal admin and may be manually copied into editorial briefings or content drafts. Credentials are stored only in server-side environment variables in the deployment platform.\par
+\par
+\b 7. Security Controls\b0\par
+- Google Ads credentials are never exposed to client-side code.\par
+- API access is performed only from a server-side route.\par
+- The route validates an admin-only authentication cookie before making any Google Ads API request.\par
+- Environment variables are used for all sensitive credentials.\par
+- If the Google Ads API fails or access is unavailable, the tool falls back to clearly labeled local mock data and displays a warning to the admin.\par
+\par
+\b 8. Rate Limits and Usage Pattern\b0\par
+The expected usage is low volume and manual. Internal admins search keywords during editorial planning sessions. The tool is not designed for automated scraping, high-volume polling, or bulk extraction of Google Ads data.\par
+\par
+\b 9. Compliance and User Transparency\b0\par
+The tool is used only for internal planning and reporting around keyword opportunities. It does not modify user Google Ads accounts or campaigns. It does not perform conversion tracking, remarketing, automated bidding, or campaign management.\par
+\par
+\b 10. Requested Access Level\b0\par
+Basic Access is requested so the internal tool can use Google Ads API Keyword Planning Services for legitimate business planning and editorial research.\par
+}

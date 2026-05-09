@@ -121,8 +121,6 @@ export function OrchestratorWorkspace() {
         return [...current, candidate];
       });
     }
-    setPlannerQuery('');
-    setPlannerResults([]);
   }
 
   function updateSecondaryKeyword(index: number, patch: Partial<KeywordCandidate>) {
@@ -174,45 +172,79 @@ export function OrchestratorWorkspace() {
 
       <section style={panelStyle}>
         <p style={eyebrowStyle}>Skill 1</p>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px' }}>
-          <h2 style={{ ...subtitleStyle, margin: 0 }}>Keywords Researcher</h2>
-          <div style={{ position: 'relative', width: '300px' }}>
-             <input 
-               placeholder="Busca no Keyword Planner..." 
-               value={plannerQuery} 
-               onChange={(e) => handlePlannerSearch(e.target.value)} 
-               style={{ ...inputStyle, borderColor: '#C8F135' }} 
-             />
-             {(plannerResults.length > 0 || plannerLoading || plannerWarning) && (
-               <div style={dropdownStyle}>
-                 {plannerLoading && (
-                   <div style={dropdownEmptyStyle}>Consultando Google Ads Keyword Planner...</div>
-                 )}
-                 {!plannerLoading && plannerWarning && (
-                   <div style={dropdownWarningStyle}>{plannerWarning}</div>
-                 )}
-                 {!plannerLoading && plannerSource && (
-                   <div style={dropdownSourceStyle}>
-                     Fonte: {plannerSource === 'google-ads' ? 'Google Ads Keyword Planner' : 'Fallback local'}
-                   </div>
-                 )}
-                 {plannerResults.map((res) => (
-                   <div key={res.termo} style={dropdownItemStyle}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{res.termo}</div>
-                        <div style={{ fontSize: '11px', opacity: 0.7 }}>Vol: {res.volumeMensal} | Dif: {res.dificuldade} | {res.intencao}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={() => applyKeyword(res, 'primary')} style={tinyButtonStyle} title="Usar como Principal">P</button>
-                        <button onClick={() => applyKeyword(res, 'secondary')} style={tinyButtonStyle} title="Usar como Secundaria">S</button>
-                      </div>
-                   </div>
-                 ))}
-               </div>
-             )}
+        <div style={keywordResearchHeaderStyle}>
+          <div>
+            <h2 style={{ ...subtitleStyle, margin: 0 }}>Keywords Researcher</h2>
+            <p style={hintStyle}>Busque uma palavra-chave base para listar caudas longas relacionadas. Depois aplique a sugestao escolhida ao briefing.</p>
           </div>
+          <form
+            style={keywordSearchFormStyle}
+            onSubmit={(event) => {
+              event.preventDefault();
+              handlePlannerSearch(plannerQuery);
+            }}
+          >
+            <input
+              placeholder="Palavra-chave base"
+              value={plannerQuery}
+              onChange={(event) => setPlannerQuery(event.target.value)}
+              style={{ ...inputStyle, borderColor: '#C8F135' }}
+            />
+            <button type="submit" style={searchButtonStyle} disabled={plannerLoading}>
+              {plannerLoading ? 'Buscando...' : 'Buscar'}
+            </button>
+          </form>
         </div>
-        <p style={hintStyle}>Use a busca acima para consultar o Google Ads Keyword Planner. Se a API falhar, o orquestrador exibe fallback local sem expor credenciais no navegador.</p>
+
+        {(plannerSource || plannerWarning || plannerResults.length > 0 || plannerLoading) && (
+          <div style={researchResultsStyle}>
+            <div style={researchMetaStyle}>
+              <span style={pathBadgeStyle}>
+                Fonte: {plannerSource === 'google-ads' ? 'Google Ads Keyword Planner' : plannerSource === 'mock' ? 'Fallback local' : 'Aguardando consulta'}
+              </span>
+              {plannerWarning && <span style={warningInlineStyle}>{plannerWarning}</span>}
+            </div>
+            <div style={tableScrollStyle}>
+              <table style={keywordTableStyle}>
+                <thead>
+                  <tr>
+                    <th style={tableHeaderStyle}>Cauda longa relacionada</th>
+                    <th style={tableHeaderStyle}>Volume</th>
+                    <th style={tableHeaderStyle}>Dificuldade</th>
+                    <th style={tableHeaderStyle}>Intencao</th>
+                    <th style={tableHeaderStyle}>Fonte</th>
+                    <th style={tableHeaderStyle}>Aplicar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plannerLoading && (
+                    <tr>
+                      <td colSpan={6} style={tableEmptyStyle}>Consultando sugestoes relacionadas...</td>
+                    </tr>
+                  )}
+                  {!plannerLoading && plannerResults.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={tableEmptyStyle}>Nenhuma cauda longa encontrada para esta busca.</td>
+                    </tr>
+                  )}
+                  {!plannerLoading && plannerResults.map((suggestion) => (
+                    <tr key={suggestion.termo}>
+                      <td style={tableCellStrongStyle}>{suggestion.termo}</td>
+                      <td style={tableCellStyle}>{suggestion.volumeMensal}</td>
+                      <td style={tableCellStyle}>{suggestion.dificuldade}</td>
+                      <td style={tableCellStyle}>{suggestion.intencao}</td>
+                      <td style={tableCellStyle}>{suggestion.fonte}</td>
+                      <td style={tableActionsStyle}>
+                        <button onClick={() => applyKeyword(suggestion, 'primary')} style={tableButtonStyle}>Principal</button>
+                        <button onClick={() => applyKeyword(suggestion, 'secondary')} style={tableButtonGhostStyle}>Secundaria</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <div style={keywordGridStyle}>
           <KeywordFields
@@ -465,62 +497,123 @@ const pathBadgeStyle: React.CSSProperties = {
   fontSize: '12px',
 };
 
-const dropdownStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  right: 0,
-  background: '#1A1A1A',
-  border: '1px solid #C8F135',
-  borderRadius: '10px',
-  marginTop: '8px',
-  zIndex: 10,
-  maxHeight: '300px',
-  overflowY: 'auto',
-  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+const keywordResearchHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '18px',
+  marginBottom: '16px',
+  flexWrap: 'wrap',
 };
 
-const dropdownItemStyle: React.CSSProperties = {
-  padding: '12px',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+const keywordSearchFormStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(220px, 320px) auto',
+  gap: '10px',
+  alignItems: 'center',
+};
+
+const searchButtonStyle: React.CSSProperties = {
+  color: '#0A0A0A',
+  background: '#C8F135',
+  border: 'none',
+  borderRadius: '10px',
+  padding: '12px 16px',
+  fontSize: '13px',
+  fontWeight: 900,
+  cursor: 'pointer',
+};
+
+const researchResultsStyle: React.CSSProperties = {
+  background: '#0A0A0A',
+  border: '1px solid rgba(200,241,53,0.24)',
+  borderRadius: '14px',
+  marginBottom: '18px',
+  overflow: 'hidden',
+};
+
+const researchMetaStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '12px',
-  color: '#fff',
-};
-
-const dropdownEmptyStyle: React.CSSProperties = {
   padding: '12px',
-  color: 'rgba(255,255,255,0.62)',
-  fontSize: '12px',
-};
-
-const dropdownWarningStyle: React.CSSProperties = {
-  padding: '12px',
-  color: '#ffd166',
   borderBottom: '1px solid rgba(255,255,255,0.08)',
+  flexWrap: 'wrap',
+};
+
+const warningInlineStyle: React.CSSProperties = {
+  color: '#ffd166',
   fontSize: '12px',
   lineHeight: 1.45,
   overflowWrap: 'anywhere',
+  flex: 1,
+  minWidth: '220px',
 };
 
-const dropdownSourceStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  color: '#C8F135',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+const tableScrollStyle: React.CSSProperties = {
+  overflowX: 'auto',
+};
+
+const keywordTableStyle: React.CSSProperties = {
+  width: '100%',
+  minWidth: '860px',
+  borderCollapse: 'collapse',
+};
+
+const tableHeaderStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.52)',
   fontSize: '11px',
+  fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  textAlign: 'left',
+  padding: '12px',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  whiteSpace: 'nowrap',
 };
 
-const tinyButtonStyle: React.CSSProperties = {
+const tableCellStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  fontSize: '13px',
+  padding: '12px',
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  verticalAlign: 'middle',
+};
+
+const tableCellStrongStyle: React.CSSProperties = {
+  ...tableCellStyle,
+  color: '#fff',
+  fontWeight: 800,
+};
+
+const tableActionsStyle: React.CSSProperties = {
+  ...tableCellStyle,
+  display: 'flex',
+  gap: '8px',
+  whiteSpace: 'nowrap',
+};
+
+const tableEmptyStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.58)',
+  fontSize: '13px',
+  padding: '18px 12px',
+  textAlign: 'center',
+};
+
+const tableButtonStyle: React.CSSProperties = {
   background: '#C8F135',
-  color: '#000',
+  color: '#0A0A0A',
   border: 'none',
-  borderRadius: '4px',
-  width: '24px',
-  height: '24px',
-  fontSize: '11px',
+  borderRadius: '8px',
+  padding: '8px 10px',
+  fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+};
+
+const tableButtonGhostStyle: React.CSSProperties = {
+  ...tableButtonStyle,
+  background: 'transparent',
+  color: '#C8F135',
+  border: '1px solid rgba(200,241,53,0.45)',
 };
