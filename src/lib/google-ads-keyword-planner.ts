@@ -23,6 +23,14 @@ interface GoogleAdsKeywordIdeaResponse {
   error?: {
     message?: string;
     status?: string;
+    details?: Array<{
+      errors?: Array<{
+        errorCode?: {
+          authorizationError?: string;
+        };
+        message?: string;
+      }>;
+    }>;
   };
 }
 
@@ -36,7 +44,7 @@ export interface KeywordPlannerSearchResult {
 
 const DEFAULT_LANGUAGE = 'languageConstants/1014';
 const DEFAULT_GEO_TARGET = 'geoTargetConstants/2076';
-const DEFAULT_API_VERSION = 'v19';
+const DEFAULT_API_VERSION = 'v21';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -71,6 +79,18 @@ function formatTokenError(data: GoogleAdsTokenResponse): string {
   }
 
   return data.error_description || data.error || 'Falha ao obter access token do Google Ads.';
+}
+
+function formatGoogleAdsError(data: GoogleAdsKeywordIdeaResponse): string {
+  const apiError = data.error?.details
+    ?.flatMap((detail) => detail.errors ?? [])
+    .find((error) => error.errorCode?.authorizationError || error.message);
+
+  if (apiError?.errorCode?.authorizationError === 'DEVELOPER_TOKEN_NOT_APPROVED') {
+    return 'Developer Token ainda nao tem Basic ou Standard Access. O Keyword Planner nao funciona com Explorer Access.';
+  }
+
+  return apiError?.message || data.error?.message || data.error?.status || 'Falha na consulta ao Google Ads Keyword Planner.';
 }
 
 function mapCompetition(value: GoogleAdsCompetition): KeywordSuggestion['dificuldade'] {
@@ -146,9 +166,14 @@ async function fetchGoogleAdsKeywordIdeas(query: string): Promise<KeywordSuggest
     cache: 'no-store',
   });
 
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Google Ads API retornou uma resposta inesperada para ${apiVersion}. Confira se a versao da API esta ativa.`);
+  }
+
   const data = await response.json() as GoogleAdsKeywordIdeaResponse;
   if (!response.ok) {
-    throw new Error(data.error?.message || data.error?.status || 'Falha na consulta ao Google Ads Keyword Planner.');
+    throw new Error(formatGoogleAdsError(data));
   }
 
   return (data.results ?? [])

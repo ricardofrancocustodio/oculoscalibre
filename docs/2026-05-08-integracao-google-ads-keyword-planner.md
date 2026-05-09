@@ -33,6 +33,11 @@
 - A mensagem de falha OAuth exibida no admin foi encurtada para não ocupar todo o dropdown da Skill 1.
 - O dropdown do Keyword Planner passou a quebrar mensagens longas com `overflowWrap: 'anywhere'`, mantendo o fallback local utilizável enquanto as credenciais são corrigidas.
 
+## Diagnóstico Google Ads API em 09/05/2026
+- O OAuth passou a retornar access token corretamente depois da geração do refresh token com o OAuth Client correto.
+- O endpoint `v19` retornou HTML/404; o cliente foi atualizado para usar `v21` como versão padrão.
+- A chamada real ao `generateKeywordIdeas` passou a retornar `DEVELOPER_TOKEN_NOT_APPROVED`: o Developer Token ainda está em Explorer Access e precisa de Basic ou Standard Access para usar Keyword Planning Services.
+
 ---
 
 _Registro automático de implementação pelo assistente GitHub Copilot._
