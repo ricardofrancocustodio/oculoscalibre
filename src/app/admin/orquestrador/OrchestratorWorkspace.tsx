@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import {
   buildEditorialOrchestration,
   buildSkillPrompt,
@@ -15,7 +15,9 @@ import {
   getRandomArticleWriterProfile,
   type ArticleWriterProfile,
 } from '@/lib/article-writer';
+import { buildPublisherPackage } from '@/lib/article-publisher';
 import type { KeywordSuggestion } from '@/lib/keyword-planner';
+import { publishOrchestratedPost, type PublishOrchestratedPostResult } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
 
@@ -54,6 +56,7 @@ function suggestionToKeyword(suggestion: KeywordSuggestion): KeywordCandidate {
 }
 
 export function OrchestratorWorkspace() {
+  const [publisherPending, startPublisherTransition] = useTransition();
   const [tema, setTema] = useState('oculos de sol para rosto largo');
   const [siloPath, setSiloPath] = useState('formatos-de-oculos/rosto-largo');
   const [produtoId, setProdutoId] = useState(productCatalog[0]?.id ?? '');
@@ -67,6 +70,8 @@ export function OrchestratorWorkspace() {
   const [plannerWarning, setPlannerWarning] = useState('');
   const [plannerSource, setPlannerSource] = useState<'google-ads' | 'mock' | null>(null);
   const [writerProfile, setWriterProfile] = useState<ArticleWriterProfile>(() => getRandomArticleWriterProfile());
+  const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
+  const [publisherError, setPublisherError] = useState('');
 
   const [keywordPrincipal, setKeywordPrincipal] = useState<KeywordCandidate>({
     termo: 'oculos de sol para rosto largo masculino',
@@ -102,6 +107,12 @@ export function OrchestratorWorkspace() {
     integracaoConteudo: plan.integracaoConteudo,
     profile: writerProfile,
   }), [tema, persona, jornadaNarrativa, keywordPrincipal, keywordsSecundarias, plan.produto, plan.integracaoConteudo, writerProfile]);
+
+  const publisherPackage = useMemo(() => buildPublisherPackage({
+    draft: articleDraft,
+    topicPath: siloPath,
+    slugBase: plan.slugSugerido,
+  }), [articleDraft, siloPath, plan.slugSugerido]);
 
   async function handlePlannerSearch(q: string) {
     const query = q.trim();
@@ -162,6 +173,31 @@ export function OrchestratorWorkspace() {
 
     window.localStorage.setItem(ORCHESTRATOR_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     window.location.href = '/admin/posts/novo';
+  }
+
+  function publishCurrentArticle() {
+    setPublisherError('');
+    setPublisherResult(null);
+
+    if (publisherPackage.warnings.length) {
+      setPublisherError(publisherPackage.warnings.join(' '));
+      return;
+    }
+
+    startPublisherTransition(() => {
+      void publishOrchestratedPost({
+        titulo: publisherPackage.titulo,
+        resumo: publisherPackage.resumo,
+        conteudoMarkdown: publisherPackage.conteudoMarkdown,
+        tags: publisherPackage.tags,
+        topicPath: publisherPackage.topicPath,
+        slug: publisherPackage.slug,
+      })
+        .then((result) => setPublisherResult(result))
+        .catch((error: unknown) => {
+          setPublisherError(error instanceof Error ? error.message : 'Nao foi possivel publicar o artigo.');
+        });
+    });
   }
 
   return (
@@ -333,6 +369,53 @@ export function OrchestratorWorkspace() {
         </div>
 
         <textarea readOnly value={articleDraft.conteudoMarkdown} style={draftStyle} />
+      </section>
+
+      <section style={panelStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p style={eyebrowStyle}>Skill 5</p>
+            <h2 style={subtitleStyle}>Publisher</h2>
+            <p style={hintStyle}>Recebe o texto revisado, valida silo e slug, publica o post na categoria correta e revalida blog e sitemap.</p>
+          </div>
+          <button type="button" onClick={publishCurrentArticle} disabled={publisherPending || Boolean(publisherPackage.warnings.length)} style={searchButtonStyle}>
+            {publisherPending ? 'Publicando...' : 'Publicar agora'}
+          </button>
+        </div>
+
+        <div style={publisherGridStyle}>
+          <div style={publisherBoxStyle}>
+            <p style={publisherLabelStyle}>Categoria / silo</p>
+            <strong>{publisherPackage.topicPath || 'a definir'}</strong>
+          </div>
+          <div style={publisherBoxStyle}>
+            <p style={publisherLabelStyle}>Slug final</p>
+            <strong>{publisherPackage.postPath || 'a definir'}</strong>
+          </div>
+          <div style={publisherBoxStyle}>
+            <p style={publisherLabelStyle}>URL publica prevista</p>
+            <strong>{publisherPackage.publicUrl}</strong>
+          </div>
+        </div>
+
+        <div style={publisherChecklistStyle}>
+          <strong>Checklist do Publisher</strong>
+          <ul style={publisherListStyle}>
+            {publisherPackage.checklist.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </div>
+
+        {publisherPackage.warnings.length > 0 && (
+          <div style={publisherWarningStyle}>{publisherPackage.warnings.join(' ')}</div>
+        )}
+
+        {publisherError && <div style={publisherWarningStyle}>{publisherError}</div>}
+
+        {publisherResult && (
+          <div style={publisherSuccessStyle}>
+            Publicado em <a href={publisherResult.publicUrl} style={successLinkStyle}>{publisherResult.publicUrl}</a>. Edicao: <a href={publisherResult.adminUrl} style={successLinkStyle}>{publisherResult.adminUrl}</a>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -573,6 +656,73 @@ const writerSummaryStyle: React.CSSProperties = {
   color: '#fff',
   marginBottom: '14px',
   lineHeight: 1.5,
+};
+
+const publisherGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+  marginBottom: '14px',
+};
+
+const publisherBoxStyle: React.CSSProperties = {
+  background: '#0A0A0A',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '12px',
+  padding: '14px',
+  color: '#fff',
+  overflowWrap: 'anywhere',
+};
+
+const publisherLabelStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.48)',
+  fontSize: '11px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  margin: '0 0 8px',
+};
+
+const publisherChecklistStyle: React.CSSProperties = {
+  background: 'rgba(200,241,53,0.06)',
+  border: '1px solid rgba(200,241,53,0.18)',
+  borderRadius: '12px',
+  padding: '14px',
+  color: 'rgba(255,255,255,0.86)',
+  marginBottom: '14px',
+};
+
+const publisherListStyle: React.CSSProperties = {
+  margin: '10px 0 0',
+  paddingLeft: '18px',
+  lineHeight: 1.7,
+};
+
+const publisherWarningStyle: React.CSSProperties = {
+  background: 'rgba(255,209,102,0.08)',
+  border: '1px solid rgba(255,209,102,0.32)',
+  borderRadius: '12px',
+  color: '#ffd166',
+  padding: '12px 14px',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  marginTop: '10px',
+};
+
+const publisherSuccessStyle: React.CSSProperties = {
+  background: 'rgba(200,241,53,0.08)',
+  border: '1px solid rgba(200,241,53,0.3)',
+  borderRadius: '12px',
+  color: '#fff',
+  padding: '12px 14px',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  marginTop: '10px',
+};
+
+const successLinkStyle: React.CSSProperties = {
+  color: '#C8F135',
+  fontWeight: 800,
 };
 
 const researchResultsStyle: React.CSSProperties = {

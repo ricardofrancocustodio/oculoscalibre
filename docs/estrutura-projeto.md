@@ -32,6 +32,7 @@ Este documento descreve a estrutura atual do projeto, com foco nas áreas públi
 - `/src/app/admin/posts/MarkdownPreview.tsx` — preview do conteúdo em Markdown.
 - `/src/app/admin/orquestrador/page.tsx` — cockpit do orquestrador editorial de artigos.
 - `/src/app/admin/orquestrador/OrchestratorWorkspace.tsx` — interface client-side para montar o briefing dos bots.
+- `/src/app/admin/orquestrador/actions.ts` — server action autenticada para publicar artigos gerados pelo Publisher.
 
 ## APIs
 - `/src/app/api/leads/route.ts` — cria lead e dispara e-mails via Resend.
@@ -44,6 +45,7 @@ Este documento descreve a estrutura atual do projeto, com foco nas áreas públi
 - `/src/lib/blog.ts` — transformação de posts em dados de navegação por silo, breadcrumbs e relacionados.
 - `/src/lib/article-orchestrator.ts` — contratos das skills editoriais e geração de briefing operacional.
 - `/src/lib/article-writer.ts` — gera rascunhos Markdown do Redator com perfis editoriais variáveis a partir do briefing integrado.
+- `/src/lib/article-publisher.ts` — valida o pacote de publicação, normaliza silo/slug/tags e prepara a URL final do artigo.
 - `/src/lib/content-integrator.ts` — cruza keyword, intenção, produto, medidas, dor e CTA para gerar o pacote editorial enviado ao Redator.
 - `/src/lib/catalog.ts` — catálogo editorial dos produtos usados pelo integrador de conteúdo.
 - `/src/lib/google-ads-keyword-planner.ts` — cliente server-only da Google Ads API para busca real de ideias de palavras-chave.

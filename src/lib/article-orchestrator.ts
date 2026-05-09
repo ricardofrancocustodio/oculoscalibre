@@ -100,13 +100,13 @@ export const editorialSkills: EditorialSkill[] = [
   {
     id: 'publisher',
     nome: 'Publisher',
-    objetivo: 'Publicar o post no admin seguindo a estrutura de silos definida.',
-    entrada: ['texto final', 'meta tags', 'siloPath', 'slug', 'tags', 'imagem de capa'],
-    saida: ['post em rascunho ou publicado', 'URL final', 'registro de revisao'],
+    objetivo: 'Publicar o texto revisado no blog seguindo a estrutura de silos definida.',
+    entrada: ['texto revisado pelo Revisor SEO', 'meta tags', 'siloPath', 'slug', 'tags', 'imagem de capa opcional'],
+    saida: ['post publicado', 'URL final', 'registro de validacao do silo', 'sitemap revalidado'],
     criterioAceite: [
       'URL deve seguir /blog/silo/subtema/artigo.',
       'Post deve preservar Markdown revisado.',
-      'Nao publicar sem conferir silo, slug, resumo e CTA.',
+      'Nao publicar sem conferir silo, slug, resumo, tags e CTA.',
     ],
   },
   {
@@ -271,11 +271,13 @@ ${formatList(integracaoConteudo.instrucoesRedator)}
 
 ## 5. Publisher
 ### Publicacao
-- Criar post em /admin/posts/novo.
+- Receber texto revisado pelo Revisor SEO.
+- Publicar o artigo na categoria correta do blog.
 - Estrutura do silo: ${normalizedSiloPath || 'a definir'}.
 - Slug do artigo: ${keywordSlug || 'a definir'}.
 - Resumo: derivar da meta description revisada.
-- Status recomendado: rascunho ate revisao final.
+- URL final prevista: /blog/${postPathSugerido || 'silo/subtema/artigo'}.
+- Revalidar blog, paginas do silo, artigo e sitemap apos a publicacao.
 
 ## 6. Sitemap Updater
 ### Validacao
