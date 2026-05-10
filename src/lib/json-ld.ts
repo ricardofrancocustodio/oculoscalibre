@@ -29,7 +29,7 @@ export function organizationSchema() {
     slogan: 'Óculos Calibre. Para quem tem presença de sobra.',
     description:
       'Calibre é a marca brasileira de óculos de sol em acetato premium para rostos largos, com frontal a partir de 150mm. Para quem tem presença de sobra.',
-    sameAs: [],
+    sameAs: ['https://www.instagram.com/oculos.calibre/'],
   };
 }
 
