@@ -71,6 +71,7 @@ export interface WriterBrief {
   tema: string;
   keywordPrincipal: string;
   keywordsSecundarias: string[];
+  keywordsContextuais?: string[];
   persona: string;
   problemaPrincipal: string;
   provaConcreta: string;
@@ -106,6 +107,7 @@ function buildBriefingPrompt(brief: WriterBrief): string {
 - **Tema:** ${brief.tema}
 - **Keyword principal (foco):** "${brief.keywordPrincipal}"
 - **Keywords secundárias (citar pelo menos 1× cada, com naturalidade):** ${brief.keywordsSecundarias.length ? brief.keywordsSecundarias.map((k) => `"${k}"`).join(', ') : '(nenhuma fornecida)'}
+- **Keywords de contexto (usar como variações semânticas e sinônimos; não é obrigatório citar literalmente, mas enriquecem a semântica):** ${brief.keywordsContextuais?.length ? brief.keywordsContextuais.map((k) => `"${k}"`).join(', ') : '(nenhuma)'}
 - **Persona:** ${brief.persona}
 - **Problema principal (dor):** ${brief.problemaPrincipal}
 - **Prova concreta a usar:** ${brief.provaConcreta}

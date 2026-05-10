@@ -80,6 +80,23 @@ function normalizeTerm(value: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function parseVolumeMensal(v: string): number {
+  const clean = v.replace(',', '.').trim().toLowerCase();
+  if (clean.endsWith('k')) return parseFloat(clean) * 1000;
+  if (clean.endsWith('m')) return parseFloat(clean) * 1_000_000;
+  return parseFloat(clean) || 0;
+}
+
+function difficultyWeight(d: string): number {
+  const key = d.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const map: Record<string, number> = { 'muito baixa': 5, 'baixa': 4, 'media': 3, 'alta': 2, 'muito alta': 1 };
+  return map[key] ?? 3;
+}
+
+function opportunityScore(s: KeywordSuggestion): number {
+  return parseVolumeMensal(s.volumeMensal) * difficultyWeight(s.dificuldade);
+}
+
 function suggestionToKeyword(suggestion: KeywordSuggestion): KeywordCandidate {
   return {
     termo: suggestion.termo,
@@ -119,6 +136,7 @@ export function OrchestratorWorkspace() {
   const [seoPhase, setSeoPhase] = useState('');
   const [seoStatus, setSeoStatus] = useState<'pass' | 'warn' | 'fail' | null>(null);
   const [seoHistory, setSeoHistory] = useState<SeoIterationRecord[]>([]);
+  const [keywordsContextuais, setKeywordsContextuais] = useState<string[]>([]);
   const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
   const [publisherError, setPublisherError] = useState('');
 
@@ -210,8 +228,12 @@ export function OrchestratorWorkspace() {
 
       const result = data as KeywordPlannerResponse;
       const relatedSuggestions = (result.suggestions ?? []).filter((suggestion) => normalizeTerm(suggestion.termo) !== normalizeTerm(query));
-      setPlannerResults(relatedSuggestions);
-      setKeywordsSecundarias(relatedSuggestions.map(suggestionToKeyword));
+      const ranked = [...relatedSuggestions].sort((a, b) => opportunityScore(b) - opportunityScore(a));
+      const topSecundarias = ranked.slice(0, 4);
+      const contextual = ranked.slice(4);
+      setPlannerResults(ranked);
+      setKeywordsSecundarias(topSecundarias.map(suggestionToKeyword));
+      setKeywordsContextuais(contextual.map((s) => s.termo));
       setPlannerSource(result.source);
       setPlannerWarning(result.warning ?? '');
 
@@ -261,6 +283,7 @@ export function OrchestratorWorkspace() {
         keywordsSecundarias: keywordsSecundarias
           .map((keyword) => keyword.termo.trim())
           .filter(Boolean),
+        keywordsContextuais,
         persona: BRAND_CONTEXT.persona,
         problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
         provaConcreta: plan.integracaoConteudo.provaConcreta,
@@ -306,6 +329,7 @@ export function OrchestratorWorkspace() {
       tema: BRAND_CONTEXT.tema,
       keywordPrincipal: keywordPrincipal.termo,
       keywordsSecundarias: keywordsSecundarias.map((k) => k.termo.trim()).filter(Boolean),
+      keywordsContextuais,
       persona: BRAND_CONTEXT.persona,
       problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
       provaConcreta: plan.integracaoConteudo.provaConcreta,
@@ -521,36 +545,59 @@ export function OrchestratorWorkspace() {
               <table style={keywordTableStyle}>
                 <thead>
                   <tr>
-                    <th style={tableHeaderStyle}>Palavra-chave relacionada obrigatoria</th>
+                    <th style={tableHeaderStyle}>Papel no artigo</th>
+                    <th style={tableHeaderStyle}>Palavra-chave</th>
                     <th style={tableHeaderStyle}>Volume</th>
                     <th style={tableHeaderStyle}>Dificuldade</th>
                     <th style={tableHeaderStyle}>Intencao</th>
-                    <th style={tableHeaderStyle}>Fonte</th>
+                    <th style={tableHeaderStyle}>Score</th>
                   </tr>
                 </thead>
                 <tbody>
                   {plannerLoading && (
                     <tr>
-                      <td colSpan={5} style={tableEmptyStyle}>Consultando sugestoes relacionadas...</td>
+                      <td colSpan={6} style={tableEmptyStyle}>Analisando oportunidades de ranking...</td>
                     </tr>
                   )}
                   {!plannerLoading && plannerResults.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={tableEmptyStyle}>Nenhuma cauda longa encontrada para esta busca.</td>
+                      <td colSpan={6} style={tableEmptyStyle}>Nenhuma cauda longa encontrada para esta busca.</td>
                     </tr>
                   )}
-                  {!plannerLoading && plannerResults.map((suggestion) => (
-                    <tr key={suggestion.termo}>
-                      <td style={tableCellStrongStyle}>{suggestion.termo}</td>
-                      <td style={tableCellStyle}>{suggestion.volumeMensal}</td>
-                      <td style={tableCellStyle}>{suggestion.dificuldade}</td>
-                      <td style={tableCellStyle}>{suggestion.intencao}</td>
-                      <td style={tableCellStyle}>{suggestion.fonte}</td>
-                    </tr>
-                  ))}
+                  {!plannerLoading && plannerResults.map((suggestion, idx) => {
+                    const score = opportunityScore(suggestion);
+                    const isObrigatoria = idx < 4;
+                    return (
+                      <tr key={suggestion.termo}>
+                        <td style={tableCellStyle}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: '999px',
+                            background: isObrigatoria ? 'rgba(200,241,53,0.15)' : 'rgba(255,255,255,0.05)',
+                            color: isObrigatoria ? '#C8F135' : 'rgba(255,255,255,0.38)',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {isObrigatoria ? `#${idx + 1} obrigatória` : 'contexto'}
+                          </span>
+                        </td>
+                        <td style={tableCellStrongStyle}>{suggestion.termo}</td>
+                        <td style={tableCellStyle}>{suggestion.volumeMensal}</td>
+                        <td style={tableCellStyle}>{suggestion.dificuldade}</td>
+                        <td style={tableCellStyle}>{suggestion.intencao}</td>
+                        <td style={tableCellStyle}>{score > 0 ? score.toLocaleString('pt-BR') : '—'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            {!plannerLoading && plannerResults.length > 0 && (
+              <div style={{ padding: '10px 12px', fontSize: '12px', color: 'rgba(255,255,255,0.42)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                Score = volume × peso da dificuldade (Muito Baixa=5 … Muito Alta=1). As 4 primeiras entram como keywords obrigatórias no artigo; as demais enriquecem a semântica como contexto.
+              </div>
+            )}
           </div>
         )}
 
