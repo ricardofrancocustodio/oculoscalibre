@@ -316,3 +316,84 @@ export async function suggestSiloPath(input: SiloSuggestionInput): Promise<strin
   }
   return 'formatos-de-oculos/rosto-largo';
 }
+
+const CLUSTER_SYSTEM_PROMPT = `Você é um estrategista de conteúdo SEO especializado em silos semânticos para um blog de óculos de sol para rostos largos.
+
+Dado uma keyword principal, sugira uma bateria de posts formando um cluster semântico coeso com:
+- 1 Página Pilar: artigo amplo que cobre o tema central do cluster
+- 3 a 5 Posts de Suporte: artigos específicos que aprofundam facetas distintas da keyword principal
+
+Regras de vinculação (Link Wheel):
+- A Página Pilar linka para TODOS os Posts de Suporte
+- Cada Post de Suporte linka para: (1) a keyword do Pilar e (2) a keyword do próximo Post de Suporte em ordem circular (o último linka de volta para o primeiro, fechando o anel)
+- Nenhum post linka para si mesmo
+
+No campo "linkaPara" liste APENAS as keywords dos posts que ele deve linkar internamente (não URLs, apenas as keywords conforme definidas neste cluster).
+
+Retorne APENAS JSON válido com esta estrutura:
+{
+  "topico": "tema abrangente do cluster",
+  "pilar": {
+    "titulo": "título H1 do artigo pilar",
+    "keyword": "keyword principal do pilar",
+    "intencao": "informacional",
+    "resumo": "1 frase descrevendo o conteúdo do pilar",
+    "siloPath": "caminho do silo sem /blog/ e sem slug final",
+    "tipo": "pilar",
+    "linkaPara": ["keyword suporte 1", "keyword suporte 2", "..."]
+  },
+  "suportes": [
+    {
+      "titulo": "título H1 do artigo de suporte",
+      "keyword": "keyword do suporte",
+      "intencao": "informacional",
+      "resumo": "1 frase descrevendo o conteúdo",
+      "siloPath": "caminho do silo",
+      "tipo": "suporte",
+      "linkaPara": ["keyword do pilar", "keyword do próximo suporte (anel)"]
+    }
+  ]
+}`;
+
+export interface ClusterPost {
+  titulo: string;
+  keyword: string;
+  intencao: 'informacional' | 'comercial' | 'transacional';
+  resumo: string;
+  siloPath: string;
+  tipo: 'pilar' | 'suporte';
+  linkaPara: string[];
+}
+
+export interface PostCluster {
+  topico: string;
+  pilar: ClusterPost;
+  suportes: ClusterPost[];
+}
+
+export async function suggestPostCluster(
+  keyword: string,
+  siloPath: string,
+  relatedKeywords?: string[],
+): Promise<PostCluster> {
+  const client = getClient();
+
+  const parts: string[] = [`Keyword principal: ${keyword}`, `Silo atual: ${siloPath}`];
+  if (relatedKeywords?.length) {
+    parts.push(`Keywords relacionadas disponíveis (use como inspiração para os posts de suporte): ${relatedKeywords.slice(0, 10).join(', ')}`);
+  }
+
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_completion_tokens: 1200,
+    temperature: 0.2,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: CLUSTER_SYSTEM_PROMPT },
+      { role: 'user', content: parts.join('\n') },
+    ],
+  });
+
+  const text = (response.choices[0]?.message?.content ?? '').trim();
+  return JSON.parse(text) as PostCluster;
+}

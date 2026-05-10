@@ -23,7 +23,9 @@ import {
   publishOrchestratedPost,
   reviseArticleWithLlmAction,
   suggestSiloPathAction,
+  suggestPostClusterAction,
   type PublishOrchestratedPostResult,
+  type PostCluster,
 } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
@@ -149,6 +151,8 @@ export function OrchestratorWorkspace() {
   });
   const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
   const [publisherError, setPublisherError] = useState('');
+  const [postCluster, setPostCluster] = useState<PostCluster | null>(null);
+  const [clusterLoading, setClusterLoading] = useState(false);
 
   const [keywordPrincipal, setKeywordPrincipal] = useState<KeywordCandidate>({
     termo: 'oculos de sol para rosto largo masculino',
@@ -205,6 +209,8 @@ export function OrchestratorWorkspace() {
     setPlannerQuery(query);
     setPlannerWarning('');
     setPlannerSource(null);
+    setPostCluster(null);
+    setClusterLoading(false);
 
     if (query.length < 2) {
       setPlannerResults([]);
@@ -248,6 +254,12 @@ export function OrchestratorWorkspace() {
       setPlannerWarning(result.warning ?? '');
 
       void suggestSiloPathAction({ keyword: query }).then(setSiloPath).catch(() => {});
+
+      setClusterLoading(true);
+      void suggestPostClusterAction(query, siloPath, ranked.map((s) => s.termo))
+        .then((cluster) => { setPostCluster(cluster); })
+        .catch(() => { setPostCluster(null); })
+        .finally(() => { setClusterLoading(false); });
     } catch {
       setPlannerResults([]);
       setKeywordsSecundarias([]);
@@ -634,6 +646,66 @@ export function OrchestratorWorkspace() {
 
       </section>
 
+      {(clusterLoading || postCluster) && (
+        <section style={panelStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <p style={eyebrowStyle}>Skill 1 — Estratégia de Conteúdo</p>
+              <h2 style={subtitleStyle}>Bateria de Posts — Cluster Semântico</h2>
+              <p style={hintStyle}>
+                Conjunto de artigos interligados formando um anel de links (<em>Link Wheel</em>). Todos os posts de suporte linkam para o Pilar e para o próximo do anel. O Google entende a unidade temática como autoridade no nicho.
+              </p>
+            </div>
+          </div>
+
+          {clusterLoading && (
+            <div style={hintStyle}>Montando o cluster semântico com IA...</div>
+          )}
+
+          {postCluster && !clusterLoading && (
+            <>
+              <div style={{ marginBottom: '16px', padding: '10px 14px', background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.15)', borderRadius: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
+                <strong style={{ color: '#C8F135' }}>Tópico do cluster:</strong> {postCluster.topico}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <ClusterPostCard
+                  post={postCluster.pilar}
+                  allPosts={[postCluster.pilar, ...postCluster.suportes]}
+                  onUsar={(keyword) => { void handlePlannerSearch(keyword); }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' }}>Posts de suporte — anel de links ↓</span>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                </div>
+                {postCluster.suportes.map((post, idx) => (
+                  <div key={post.keyword} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <ClusterPostCard
+                      post={post}
+                      allPosts={[postCluster.pilar, ...postCluster.suportes]}
+                      onUsar={(keyword) => { void handlePlannerSearch(keyword); }}
+                    />
+                    {idx < postCluster.suportes.length - 1 && (
+                      <div style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.2)' }}>↓</div>
+                    )}
+                    {idx === postCluster.suportes.length - 1 && (
+                      <div style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.25)', padding: '4px 0' }}>
+                        ↺ linka de volta para o 1º post de suporte (fechando o anel)
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '14px', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
+                <strong>Como usar:</strong> clique em "Usar como base" para carregar a keyword do post no Planner e gerar o artigo. Crie um post por vez seguindo a ordem sugerida. Os links internos entre eles devem ser inseridos no texto de cada artigo.
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
       <section style={skillsGridStyle}>
         {editorialSkills.map((skill, index) => (
           <article key={skill.id} style={skillCardStyle}>
@@ -941,6 +1013,90 @@ export function OrchestratorWorkspace() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function ClusterPostCard({
+  post,
+  allPosts,
+  onUsar,
+}: {
+  post: import('./actions').ClusterPost;
+  allPosts: import('./actions').ClusterPost[];
+  onUsar: (keyword: string) => void;
+}) {
+  const isPilar = post.tipo === 'pilar';
+  const accentColor = isPilar ? '#C8F135' : 'rgba(255,255,255,0.62)';
+  const linkedPosts = allPosts.filter((p) => post.linkaPara.includes(p.keyword));
+
+  return (
+    <div style={{
+      background: isPilar ? 'rgba(200,241,53,0.04)' : '#0A0A0A',
+      border: `1px solid ${isPilar ? 'rgba(200,241,53,0.25)' : 'rgba(255,255,255,0.07)'}`,
+      borderRadius: '12px',
+      padding: '16px',
+      display: 'grid',
+      gap: '10px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span style={{
+            fontSize: '10px',
+            fontWeight: 900,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            padding: '4px 10px',
+            borderRadius: '999px',
+            background: isPilar ? 'rgba(200,241,53,0.15)' : 'rgba(255,255,255,0.06)',
+            color: accentColor,
+            whiteSpace: 'nowrap',
+          }}>
+            {isPilar ? '★ Página Pilar' : '◈ Suporte'}
+          </span>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)', background: 'rgba(255,255,255,0.04)', borderRadius: '999px', padding: '3px 9px' }}>
+            {post.intencao}
+          </span>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)', fontFamily: 'monospace' }}>
+            /blog/{post.siloPath}/…
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onUsar(post.keyword)}
+          style={{ ...secondaryButtonStyle, fontSize: '11px', padding: '6px 12px', whiteSpace: 'nowrap' }}
+        >
+          Usar como base →
+        </button>
+      </div>
+
+      <div>
+        <div style={{ fontSize: '15px', color: '#fff', fontWeight: 700, marginBottom: '4px' }}>{post.titulo}</div>
+        <div style={{ fontSize: '12px', color: '#C8F135', marginBottom: '6px', fontFamily: 'monospace' }}>{post.keyword}</div>
+        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.55 }}>{post.resumo}</div>
+      </div>
+
+      {linkedPosts.length > 0 && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+            Links internos saem deste post →
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {linkedPosts.map((linked) => (
+              <span key={linked.keyword} style={{
+                fontSize: '11px',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                background: linked.tipo === 'pilar' ? 'rgba(200,241,53,0.08)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${linked.tipo === 'pilar' ? 'rgba(200,241,53,0.2)' : 'rgba(255,255,255,0.08)'}`,
+                color: linked.tipo === 'pilar' ? '#C8F135' : 'rgba(255,255,255,0.5)',
+              }}>
+                {linked.tipo === 'pilar' ? '★ ' : ''}{linked.keyword}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

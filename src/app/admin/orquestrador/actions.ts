@@ -9,11 +9,16 @@ import {
   generateArticleWithLlm,
   reviseArticleWithLlm,
   suggestSiloPath,
+  suggestPostCluster,
   type ReviewIssueForRevision,
   type WriterBrief,
   type WriterResult,
   type SiloSuggestionInput,
+  type PostCluster,
+  type ClusterPost,
 } from '@/lib/article-writer-llm';
+
+export type { PostCluster, ClusterPost };
 
 export interface PublishOrchestratedPostInput {
   titulo: string;
@@ -150,4 +155,13 @@ export async function reviseArticleWithLlmAction(input: {
 export async function suggestSiloPathAction(input: SiloSuggestionInput): Promise<string> {
   await requireAuth();
   return suggestSiloPath(input);
+}
+
+export async function suggestPostClusterAction(
+  keyword: string,
+  siloPath: string,
+  relatedKeywords?: string[],
+): Promise<PostCluster> {
+  await requireAuth();
+  return suggestPostCluster(keyword, siloPath, relatedKeywords);
 }
