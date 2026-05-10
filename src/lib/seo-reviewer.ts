@@ -129,7 +129,7 @@ function isInternalHref(href: string): boolean {
   if (/^https?:\/\//i.test(href)) {
     try {
       const url = new URL(href);
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://oculoscalibre.vercel.app';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://oculoscalibre.com.br';
       const siteHost = new URL(siteUrl).host;
       return url.host === siteHost;
     } catch {

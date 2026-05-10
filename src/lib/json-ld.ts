@@ -1,7 +1,7 @@
 import type { Post } from '@/lib/db';
 import type { ProductCatalogItem } from '@/lib/catalog';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://oculoscalibre.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://oculoscalibre.com.br';
 const SITE_NAME = 'Calibre';
 
 export function absoluteUrl(path: string): string {
@@ -26,8 +26,9 @@ export function organizationSchema() {
       '@type': 'ImageObject',
       url: absoluteUrl('/img/calibre-logo.jpeg'),
     },
+    slogan: 'Óculos Calibre. Para quem tem presença de sobra.',
     description:
-      'Calibre é a marca brasileira de óculos de sol em acetato premium para rostos largos, com frontal a partir de 150mm.',
+      'Calibre é a marca brasileira de óculos de sol em acetato premium para rostos largos, com frontal a partir de 150mm. Para quem tem presença de sobra.',
     sameAs: [],
   };
 }
