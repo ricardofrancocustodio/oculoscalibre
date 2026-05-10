@@ -55,7 +55,7 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
   const [resumo, setResumo] = useState(initial?.resumo ?? '');
   const [conteudo, setConteudo] = useState(initial?.conteudo_md ?? '');
   const [tags, setTags] = useState((initial?.tags ?? []).join(', '));
-  const [autor, setAutor] = useState(initial?.autor ?? 'Calibre');
+  const [autor, setAutor] = useState(initial?.autor ?? '@oculoscalibre');
   const [metaTitle, setMetaTitle] = useState(initial?.meta_title ?? '');
   const [metaDescription, setMetaDescription] = useState(initial?.meta_description ?? '');
   const [keywordPrincipal, setKeywordPrincipal] = useState(initial?.keyword_principal ?? '');

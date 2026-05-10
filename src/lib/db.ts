@@ -53,7 +53,7 @@ export async function ensurePostsTable() {
       conteudo_md   TEXT        NOT NULL,
       capa_url      TEXT,
       tags          TEXT[]      NOT NULL DEFAULT '{}',
-      autor         TEXT        NOT NULL DEFAULT 'Calibre',
+      autor         TEXT        NOT NULL DEFAULT '@oculoscalibre',
       publicado     BOOLEAN     NOT NULL DEFAULT false,
       published_at  TIMESTAMPTZ,
       created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -72,6 +72,7 @@ export async function ensurePostsTable() {
   await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_alt TEXT`;
   await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS noindex BOOLEAN NOT NULL DEFAULT false`;
   await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS revised_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE posts ALTER COLUMN autor SET DEFAULT '@oculoscalibre'`;
   await sql`CREATE INDEX IF NOT EXISTS idx_posts_keyword_principal ON posts(keyword_principal) WHERE keyword_principal IS NOT NULL`;
 
   postsTableReady = true;

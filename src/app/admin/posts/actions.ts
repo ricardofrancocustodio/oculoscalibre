@@ -112,7 +112,7 @@ export async function createPost(formData: FormData) {
   const resumo = String(formData.get('resumo') || '').trim();
   const conteudo = String(formData.get('conteudo_md') || '').trim();
   const tags = parseTags(formData.get('tags') as string | null);
-  const autor = String(formData.get('autor') || 'Calibre').trim() || 'Calibre';
+  const autor = String(formData.get('autor') || '@oculoscalibre').trim() || '@oculoscalibre';
   const topicPath = normalizeTopicPath(String(formData.get('topic_path') || ''));
   const articleSlug = slugify(String(formData.get('slug') || titulo));
   const action = String(formData.get('action') || 'rascunho');
@@ -173,7 +173,7 @@ export async function updatePost(id: number, formData: FormData) {
   const resumo = String(formData.get('resumo') || '').trim();
   const conteudo = String(formData.get('conteudo_md') || '').trim();
   const tags = parseTags(formData.get('tags') as string | null);
-  const autor = String(formData.get('autor') || 'Calibre').trim() || 'Calibre';
+  const autor = String(formData.get('autor') || '@oculoscalibre').trim() || '@oculoscalibre';
   const prevParsed = parsePostPath(prev.slug);
   const topicPathInput = normalizeTopicPath(String(formData.get('topic_path') || ''));
   const topicPath = topicPathInput || prevParsed.topicPath;

@@ -140,8 +140,8 @@ function buildCtaSection(input: ArticleWriterInput): string {
 }
 
 function buildAuthorBioBlock(authorName: string): string {
-  const safeAuthor = authorName.trim() || 'Calibre';
-  return `\n\n---\n\n## Sobre ${safeAuthor}\n\n${safeAuthor} e referencia editorial da Calibre, marca brasileira de oculos de sol em acetato premium para rostos largos. O conteudo e revisado com base em medidas reais do produto e em cruzamento com problemas concretos relatados por leitores.`;
+  const safeAuthor = authorName.trim() || '@oculoscalibre';
+  return `\n\n---\n\n## Sobre ${safeAuthor}\n\n${safeAuthor} é o perfil editorial oficial da Calibre — marca brasileira de óculos de sol em acetato premium para rostos largos. O conteúdo é revisado com base em medidas reais do produto e em cruzamentos com problemas concretos relatados por leitores. Acompanhe o dia a dia em [instagram.com/oculos.calibre](https://www.instagram.com/oculos.calibre/).`;
 }
 
 function buildSeoReminderBlock(input: ArticleWriterInput): string {
@@ -229,7 +229,7 @@ function buildArticleBody(input: ArticleWriterInput): string {
 }
 
 export function buildArticleDraft(input: ArticleWriterInput): ArticleDraft {
-  const authorBio = buildAuthorBioBlock('Calibre');
+  const authorBio = buildAuthorBioBlock('@oculoscalibre');
   const seoReminder = buildSeoReminderBlock(input);
   const conteudo = `${buildArticleBody(input)}${requiredKeywordsBlock(input)}${seoReminder}${authorBio}\n\n---\n\n**Notas do Redator**\n\n- Perfil editorial sorteado: ${input.profile.nome}.\n- Linguagem: ${input.profile.linguagem}.\n- Tecnica principal: ${input.profile.tecnica}.\n- Ritmo: ${input.profile.ritmo}.\n- Briefing respeitado: dor, prova, beneficio, objecao, CTA e palavras-chave obrigatorias.`;
 

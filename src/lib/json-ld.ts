@@ -100,6 +100,23 @@ export function breadcrumbListSchema(crumbs: BreadcrumbCrumb[]) {
   };
 }
 
+function buildArticleAuthor(autorRaw: string) {
+  const autor = (autorRaw ?? '').trim() || '@oculoscalibre';
+  const isBrandHandle = autor.toLowerCase() === '@oculoscalibre';
+
+  if (isBrandHandle) {
+    return {
+      '@type': 'Person',
+      name: '@oculoscalibre',
+      url: 'https://www.instagram.com/oculos.calibre/',
+      image: absoluteUrl('/img/calibre-logo.jpeg'),
+      worksFor: { '@id': `${absoluteUrl('/')}#organization` },
+    };
+  }
+
+  return { '@type': 'Person', name: autor };
+}
+
 export function articleSchema(post: Post) {
   const canonical = post.canonical_url?.trim() || `/blog/${post.slug}`;
   const url = absoluteUrl(canonical);
@@ -119,10 +136,7 @@ export function articleSchema(post: Post) {
     description,
     url,
     image: ogImage ? [ogImage] : undefined,
-    author: {
-      '@type': 'Person',
-      name: post.autor,
-    },
+    author: buildArticleAuthor(post.autor),
     publisher: { '@id': `${absoluteUrl('/')}#organization` },
     datePublished: post.published_at ?? post.created_at,
     dateModified: post.revised_at ?? post.updated_at,
