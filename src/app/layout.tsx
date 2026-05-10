@@ -32,7 +32,7 @@ const SITE_NAME = "Calibre";
 const HOME_TITLE = "Calibre MB-1572S — óculos de sol para rosto largo (até 158mm)";
 const HOME_DESCRIPTION =
   "Lista de espera do MB-1572S: óculos de sol em acetato premium com 150,7mm de frontal. Para quem nunca encontrou armação confortável em rostos largos. Reserva grátis e sem compromisso.";
-const OG_IMAGE_PATH = "/og-default.jpg";
+const OG_IMAGE_PATH = "/img/og-default.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -75,6 +75,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@oculoscalibre",
+    creator: "@oculoscalibre",
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
     images: [OG_IMAGE_PATH],
