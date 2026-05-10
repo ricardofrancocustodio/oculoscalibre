@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { sql, ensurePostsTable } from '@/lib/db';
 import { buildPostPath, normalizeTopicPath, parsePostPath, slugify } from '@/lib/slug';
+import { generateArticleWithLlm, type WriterBrief, type WriterResult } from '@/lib/article-writer-llm';
 
 export interface PublishOrchestratedPostInput {
   titulo: string;
@@ -13,6 +14,11 @@ export interface PublishOrchestratedPostInput {
   tags: string[];
   topicPath: string;
   slug: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywordPrincipal?: string;
+  keywordsSecundarias?: string[];
+  coverAlt?: string;
 }
 
 export interface PublishOrchestratedPostResult {
@@ -32,6 +38,11 @@ async function requireAuth() {
 
 function normalizeTags(tags: string[]): string[] {
   return Array.from(new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))).slice(0, 12);
+}
+
+function nullableString(value?: string): string | null {
+  const trimmed = (value ?? '').trim();
+  return trimmed ? trimmed : null;
 }
 
 async function ensureUniqueSlug(base: string): Promise<string> {
@@ -73,6 +84,10 @@ export async function publishOrchestratedPost(input: PublishOrchestratedPostInpu
   const topicPath = normalizeTopicPath(input.topicPath);
   const articleSlug = slugify(input.slug || titulo);
   const tags = normalizeTags(input.tags);
+  const keywordsSecundarias = (input.keywordsSecundarias ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 12);
 
   if (!titulo || !resumo || !conteudo) {
     throw new Error('Titulo, resumo e conteudo revisado sao obrigatorios para publicar.');
@@ -86,8 +101,15 @@ export async function publishOrchestratedPost(input: PublishOrchestratedPostInpu
   const publishedAt = new Date().toISOString();
 
   const rows = (await sql`
-    INSERT INTO posts (slug, titulo, resumo, conteudo_md, capa_url, tags, autor, publicado, published_at)
-    VALUES (${slug}, ${titulo}, ${resumo}, ${conteudo}, ${null}, ${tags}, ${'Calibre'}, ${true}, ${publishedAt})
+    INSERT INTO posts (
+      slug, titulo, resumo, conteudo_md, capa_url, tags, autor, publicado, published_at,
+      meta_title, meta_description, keyword_principal, keywords_secundarias, cover_alt
+    )
+    VALUES (
+      ${slug}, ${titulo}, ${resumo}, ${conteudo}, ${null}, ${tags}, ${'@oculoscalibre'}, ${true}, ${publishedAt},
+      ${nullableString(input.metaTitle)}, ${nullableString(input.metaDescription)},
+      ${nullableString(input.keywordPrincipal)}, ${keywordsSecundarias}, ${nullableString(input.coverAlt)}
+    )
     RETURNING id, slug
   `) as { id: number; slug: string }[];
 
@@ -101,4 +123,9 @@ export async function publishOrchestratedPost(input: PublishOrchestratedPostInpu
     publicUrl: `/blog/${rows[0].slug}`,
     adminUrl: `/admin/posts/${rows[0].id}`,
   };
+}
+
+export async function generateArticleWithLlmAction(brief: WriterBrief): Promise<WriterResult> {
+  await requireAuth();
+  return generateArticleWithLlm(brief);
 }

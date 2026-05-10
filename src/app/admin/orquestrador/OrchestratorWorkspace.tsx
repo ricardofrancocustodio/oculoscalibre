@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   buildEditorialOrchestration,
   buildSkillPrompt,
@@ -16,8 +16,9 @@ import {
   type ArticleWriterProfile,
 } from '@/lib/article-writer';
 import { buildPublisherPackage } from '@/lib/article-publisher';
+import { reviewPostSeo, type SeoReviewResult } from '@/lib/seo-reviewer';
 import type { KeywordSuggestion } from '@/lib/keyword-planner';
-import { publishOrchestratedPost, type PublishOrchestratedPostResult } from './actions';
+import { generateArticleWithLlmAction, publishOrchestratedPost, type PublishOrchestratedPostResult } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
 
@@ -57,19 +58,25 @@ function suggestionToKeyword(suggestion: KeywordSuggestion): KeywordCandidate {
 
 export function OrchestratorWorkspace() {
   const [publisherPending, startPublisherTransition] = useTransition();
+  const [llmPending, startLlmTransition] = useTransition();
   const [tema, setTema] = useState('oculos de sol para rosto largo');
   const [siloPath, setSiloPath] = useState('formatos-de-oculos/rosto-largo');
   const [produtoId, setProdutoId] = useState(productCatalog[0]?.id ?? '');
   const [persona, setPersona] = useState('pessoa com rosto largo que sente que oculos comuns ficam pequenos ou apertados');
   const [problemaPrincipal, setProblemaPrincipal] = useState('armacoes comuns apertam nas temporas e parecem pequenas no rosto');
   const [jornadaNarrativa, setJornadaNarrativa] = useState('Jornada do Cliente');
-  
+
   const [plannerQuery, setPlannerQuery] = useState('');
   const [plannerResults, setPlannerResults] = useState<KeywordSuggestion[]>([]);
   const [plannerLoading, setPlannerLoading] = useState(false);
   const [plannerWarning, setPlannerWarning] = useState('');
   const [plannerSource, setPlannerSource] = useState<'google-ads' | 'mock' | null>(null);
   const [writerProfile, setWriterProfile] = useState<ArticleWriterProfile>(() => getRandomArticleWriterProfile());
+  const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
+  const [editedTitle, setEditedTitle] = useState<string | null>(null);
+  const [llmWarning, setLlmWarning] = useState('');
+  const [llmUsage, setLlmUsage] = useState<{ modelo: string; input: number; output: number; cacheRead: number } | null>(null);
+  const [seoReview, setSeoReview] = useState<SeoReviewResult | null>(null);
   const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
   const [publisherError, setPublisherError] = useState('');
 
@@ -108,11 +115,21 @@ export function OrchestratorWorkspace() {
     profile: writerProfile,
   }), [tema, persona, jornadaNarrativa, keywordPrincipal, keywordsSecundarias, plan.produto, plan.integracaoConteudo, writerProfile]);
 
+  const effectiveDraft = useMemo(() => ({
+    ...articleDraft,
+    titulo: editedTitle ?? articleDraft.titulo,
+    conteudoMarkdown: editedMarkdown ?? articleDraft.conteudoMarkdown,
+  }), [articleDraft, editedMarkdown, editedTitle]);
+
   const publisherPackage = useMemo(() => buildPublisherPackage({
-    draft: articleDraft,
+    draft: effectiveDraft,
     topicPath: siloPath,
     slugBase: plan.slugSugerido,
-  }), [articleDraft, siloPath, plan.slugSugerido]);
+  }), [effectiveDraft, siloPath, plan.slugSugerido]);
+
+  useEffect(() => {
+    setSeoReview(null);
+  }, [effectiveDraft.conteudoMarkdown, effectiveDraft.titulo, keywordPrincipal.termo]);
 
   async function handlePlannerSearch(q: string) {
     const query = q.trim();
@@ -185,6 +202,71 @@ export function OrchestratorWorkspace() {
     window.location.href = '/admin/posts/novo';
   }
 
+  function generateWithLlm() {
+    setLlmWarning('');
+    setLlmUsage(null);
+    if (!keywordPrincipal.termo.trim()) {
+      setLlmWarning('Defina a keyword principal antes de gerar com o LLM.');
+      return;
+    }
+
+    startLlmTransition(() => {
+      void generateArticleWithLlmAction({
+        tema,
+        keywordPrincipal: keywordPrincipal.termo,
+        keywordsSecundarias: keywordsSecundarias
+          .map((keyword) => keyword.termo.trim())
+          .filter(Boolean),
+        persona,
+        problemaPrincipal,
+        provaConcreta: plan.integracaoConteudo.provaConcreta,
+        beneficioCentral: plan.integracaoConteudo.beneficioCentral,
+        objecaoPrincipal: plan.integracaoConteudo.objecaoPrincipal,
+        ctaSugerido: plan.integracaoConteudo.ctaSugerido,
+        tituloSugerido: plan.integracaoConteudo.tituloSugerido,
+        h2Sugeridos: plan.integracaoConteudo.h2Sugeridos,
+        produto: plan.produto,
+        perfilEditorial: {
+          nome: writerProfile.nome,
+          tamanho: writerProfile.tamanho,
+          tecnica: writerProfile.tecnica,
+          ritmo: writerProfile.ritmo,
+        },
+        siloPath,
+      })
+        .then((result) => {
+          setEditedMarkdown(result.conteudoMarkdown);
+          const firstHeading = result.conteudoMarkdown.match(/^#\s+(.+)$/m);
+          if (firstHeading) setEditedTitle(firstHeading[1].trim());
+          setLlmUsage({
+            modelo: result.modelo,
+            input: result.usage.inputTokens,
+            output: result.usage.outputTokens,
+            cacheRead: result.usage.cacheReadTokens,
+          });
+        })
+        .catch((error: unknown) => {
+          setLlmWarning(error instanceof Error ? error.message : 'Falha ao gerar com o LLM.');
+        });
+    });
+  }
+
+  function runSeoReview() {
+    const review = reviewPostSeo({
+      titulo: effectiveDraft.titulo,
+      resumo: effectiveDraft.resumo,
+      conteudoMd: effectiveDraft.conteudoMarkdown,
+      keywordPrincipal: keywordPrincipal.termo,
+      keywordsSecundarias: keywordsSecundarias
+        .map((keyword) => keyword.termo.trim())
+        .filter(Boolean),
+      siloPath,
+    });
+    setSeoReview(review);
+  }
+
+  const seoBlocking = (seoReview?.issues ?? []).some((issue) => issue.level === 'error');
+
   function publishCurrentArticle() {
     setPublisherError('');
     setPublisherResult(null);
@@ -194,14 +276,31 @@ export function OrchestratorWorkspace() {
       return;
     }
 
+    if (!seoReview) {
+      setPublisherError('Rode o Revisor SEO antes de publicar.');
+      return;
+    }
+
+    if (seoBlocking) {
+      setPublisherError('Há erros do Revisor SEO bloqueando a publicação. Corrija e revise novamente.');
+      return;
+    }
+
     startPublisherTransition(() => {
       void publishOrchestratedPost({
-        titulo: publisherPackage.titulo,
-        resumo: publisherPackage.resumo,
-        conteudoMarkdown: publisherPackage.conteudoMarkdown,
+        titulo: effectiveDraft.titulo,
+        resumo: effectiveDraft.resumo,
+        conteudoMarkdown: effectiveDraft.conteudoMarkdown,
         tags: publisherPackage.tags,
         topicPath: publisherPackage.topicPath,
         slug: publisherPackage.slug,
+        metaTitle: effectiveDraft.titulo.slice(0, 60),
+        metaDescription: effectiveDraft.resumo,
+        keywordPrincipal: keywordPrincipal.termo,
+        keywordsSecundarias: keywordsSecundarias
+          .map((keyword) => keyword.termo.trim())
+          .filter(Boolean),
+        coverAlt: `${keywordPrincipal.termo} ilustrado pelo ${plan.produto.nome}`,
       })
         .then((result) => setPublisherResult(result))
         .catch((error: unknown) => {
@@ -354,31 +453,107 @@ export function OrchestratorWorkspace() {
           <div>
             <p style={eyebrowStyle}>Skill 3</p>
             <h2 style={subtitleStyle}>Redator</h2>
-            <p style={hintStyle}>Rascunho gerado a partir do briefing do Integrador, com variacao editorial sorteada para evitar artigos sempre iguais.</p>
+            <p style={hintStyle}>Rascunho via template (rapido) ou gerado pelo LLM (OpenAI, ~2000 palavras). Edite livremente antes de revisar e publicar.</p>
           </div>
           <div style={buttonGroupStyle}>
             <button type="button" onClick={() => setWriterProfile(getRandomArticleWriterProfile())} style={secondaryButtonStyle}>
               Nova variacao
             </button>
-            <button type="button" onClick={prepareDraftInPostEditor} style={searchButtonStyle}>
+            <button type="button" onClick={() => { setEditedMarkdown(null); setEditedTitle(null); setLlmUsage(null); setLlmWarning(''); }} style={secondaryButtonStyle}>
+              Voltar ao template
+            </button>
+            <button type="button" onClick={generateWithLlm} disabled={llmPending} style={searchButtonStyle}>
+              {llmPending ? 'Gerando com OpenAI...' : 'Gerar com OpenAI'}
+            </button>
+            <button type="button" onClick={prepareDraftInPostEditor} style={secondaryButtonStyle}>
               Abrir como post
             </button>
           </div>
         </div>
 
         <div style={writerMetaGridStyle}>
-          <span style={writerBadgeStyle}>Perfil: {articleDraft.perfil.nome}</span>
-          <span style={writerBadgeStyle}>Tamanho: {articleDraft.perfil.tamanho}</span>
-          <span style={writerBadgeStyle}>Tecnica: {articleDraft.perfil.tecnica}</span>
-          <span style={writerBadgeStyle}>Ritmo: {articleDraft.perfil.ritmo}</span>
+          <span style={writerBadgeStyle}>Perfil: {effectiveDraft.perfil.nome}</span>
+          <span style={writerBadgeStyle}>Tamanho: {effectiveDraft.perfil.tamanho}</span>
+          <span style={writerBadgeStyle}>Tecnica: {effectiveDraft.perfil.tecnica}</span>
+          <span style={writerBadgeStyle}>Ritmo: {effectiveDraft.perfil.ritmo}</span>
+          {editedMarkdown ? <span style={{ ...writerBadgeStyle, color: '#C8F135' }}>Fonte: OpenAI (editavel)</span> : <span style={writerBadgeStyle}>Fonte: template</span>}
         </div>
 
         <div style={writerSummaryStyle}>
-          <strong>{articleDraft.titulo}</strong>
-          <p>{articleDraft.resumo}</p>
+          <strong>{effectiveDraft.titulo}</strong>
+          <p>{effectiveDraft.resumo}</p>
         </div>
 
-        <textarea readOnly value={articleDraft.conteudoMarkdown} style={draftStyle} />
+        {llmWarning && (
+          <div style={publisherWarningStyle}>{llmWarning}</div>
+        )}
+
+        {llmUsage && (
+          <div style={writerMetaGridStyle}>
+            <span style={writerBadgeStyle}>Modelo: {llmUsage.modelo}</span>
+            <span style={writerBadgeStyle}>Input: {llmUsage.input} tokens</span>
+            <span style={writerBadgeStyle}>Output: {llmUsage.output}</span>
+            <span style={writerBadgeStyle}>Cache read: {llmUsage.cacheRead}</span>
+          </div>
+        )}
+
+        <textarea
+          value={effectiveDraft.conteudoMarkdown}
+          onChange={(event) => setEditedMarkdown(event.target.value)}
+          style={draftStyle}
+        />
+      </section>
+
+      <section style={panelStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p style={eyebrowStyle}>Skill 4</p>
+            <h2 style={subtitleStyle}>Revisor SEO</h2>
+            <p style={hintStyle}>Roda local via lib/seo-reviewer. Valida H1, densidade, meta length, alt em imagens, links internos do mesmo silo. Erros bloqueiam a publicacao.</p>
+          </div>
+          <button type="button" onClick={runSeoReview} style={searchButtonStyle}>
+            Rodar Revisor SEO
+          </button>
+        </div>
+
+        {!seoReview && (
+          <div style={hintStyle}>Nao revisado. Rode antes de publicar.</div>
+        )}
+
+        {seoReview && (
+          <>
+            <div style={writerMetaGridStyle}>
+              <span style={{ ...writerBadgeStyle, color: seoReview.score >= 80 ? '#C8F135' : seoReview.score >= 60 ? '#FFB347' : '#FF6B6B', fontWeight: 800 }}>
+                Score: {seoReview.score}
+              </span>
+              <span style={writerBadgeStyle}>{seoReview.metrics.wordCount} palavras</span>
+              <span style={writerBadgeStyle}>H1: {seoReview.metrics.h1Count} · H2: {seoReview.metrics.h2Count}</span>
+              <span style={writerBadgeStyle}>Densidade keyword: {seoReview.metrics.keywordDensity.toFixed(2)}%</span>
+              <span style={writerBadgeStyle}>Meta title: {seoReview.metrics.metaTitleLength}/60</span>
+              <span style={writerBadgeStyle}>Meta description: {seoReview.metrics.metaDescriptionLength}/160</span>
+              <span style={writerBadgeStyle}>Imgs: {seoReview.metrics.imageCount} (sem alt: {seoReview.metrics.imagesMissingAlt})</span>
+              <span style={writerBadgeStyle}>Links internos: {seoReview.metrics.internalLinks}</span>
+            </div>
+            {seoReview.issues.length === 0 ? (
+              <div style={publisherSuccessStyle}>Sem issues. Pronto para publicar.</div>
+            ) : (
+              <ul style={{ margin: '12px 0 0', paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {seoReview.issues.map((issue, index) => (
+                  <li
+                    key={`${issue.rule}-${index}`}
+                    style={{
+                      fontSize: '13px',
+                      lineHeight: 1.5,
+                      color: issue.level === 'error' ? '#FF6B6B' : issue.level === 'warning' ? '#FFB347' : 'rgba(255,255,255,0.7)',
+                    }}
+                  >
+                    <strong>{issue.level === 'error' ? 'erro' : issue.level === 'warning' ? 'warning' : 'info'}</strong> · {issue.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
       </section>
 
       <section style={panelStyle}>
@@ -388,8 +563,14 @@ export function OrchestratorWorkspace() {
             <h2 style={subtitleStyle}>Publisher</h2>
             <p style={hintStyle}>Recebe o texto revisado, valida silo e slug, publica o post na categoria correta e revalida blog e sitemap.</p>
           </div>
-          <button type="button" onClick={publishCurrentArticle} disabled={publisherPending || Boolean(publisherPackage.warnings.length)} style={searchButtonStyle}>
-            {publisherPending ? 'Publicando...' : 'Publicar agora'}
+          <button
+            type="button"
+            onClick={publishCurrentArticle}
+            disabled={publisherPending || Boolean(publisherPackage.warnings.length) || !seoReview || seoBlocking}
+            style={searchButtonStyle}
+            title={!seoReview ? 'Rode o Revisor SEO antes' : seoBlocking ? 'Há erros do Revisor SEO bloqueando' : ''}
+          >
+            {publisherPending ? 'Publicando...' : !seoReview ? 'Revise antes' : seoBlocking ? 'Há erros SEO' : 'Publicar agora'}
           </button>
         </div>
 
