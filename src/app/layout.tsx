@@ -27,7 +27,7 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://oculoscalibre.com.br";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.oculoscalibre.com.br";
 const SITE_NAME = "Calibre";
 const HOME_TITLE = "Calibre MB-1572S — óculos de sol para rosto largo (até 158mm)";
 const HOME_DESCRIPTION =

@@ -1,7 +1,7 @@
 import type { Post } from '@/lib/db';
 import type { ProductCatalogItem } from '@/lib/catalog';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://oculoscalibre.com.br';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.oculoscalibre.com.br';
 const SITE_NAME = 'Calibre';
 
 export function absoluteUrl(path: string): string {
