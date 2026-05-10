@@ -308,3 +308,106 @@ export function reviewPostSeo(input: SeoReviewInput): SeoReviewResult {
     },
   };
 }
+
+const FIXABLE_RULES = new Set(['meta.title.length', 'meta.description.long', 'h1.contains.keyword', 'h1.unique']);
+
+function applyAutoCorrections(input: SeoReviewInput, issues: SeoIssue[]): { titulo: string; resumo: string; conteudoMd: string; corrections: string[] } {
+  let titulo = input.titulo;
+  let resumo = input.resumo;
+  let conteudoMd = input.conteudoMd;
+  const corrections: string[] = [];
+
+  for (const issue of issues) {
+    if (!FIXABLE_RULES.has(issue.rule)) continue;
+
+    if (issue.rule === 'meta.title.length' && titulo.length > META_TITLE_MAX) {
+      titulo = titulo.slice(0, 57) + '...';
+      corrections.push(`Meta title truncado para ${META_TITLE_MAX} caracteres.`);
+    }
+
+    if (issue.rule === 'meta.description.long' && resumo.length > META_DESCRIPTION_MAX) {
+      resumo = resumo.slice(0, 157) + '...';
+      corrections.push(`Meta description truncada para ${META_DESCRIPTION_MAX} caracteres.`);
+    }
+
+    if (issue.rule === 'h1.contains.keyword' && input.keywordPrincipal) {
+      const keyword = input.keywordPrincipal.trim();
+      const updated = conteudoMd.replace(/^(#\s+)(.+)$/m, (_match, prefix, text: string) => {
+        if (!normalize(text).includes(normalize(keyword))) {
+          corrections.push('Keyword principal inserida no H1.');
+          return `${prefix}${keyword} – ${text}`;
+        }
+        return `${prefix}${text}`;
+      });
+      conteudoMd = updated;
+    }
+
+    if (issue.rule === 'h1.unique' && !conteudoMd.match(/^#\s+\S/m) && input.keywordPrincipal) {
+      conteudoMd = `# ${input.keywordPrincipal.trim()}\n\n${conteudoMd}`;
+      corrections.push('H1 adicionado ao início do conteúdo.');
+    }
+  }
+
+  return { titulo, resumo, conteudoMd, corrections };
+}
+
+export interface SeoLoopIteration {
+  iteration: number;
+  review: SeoReviewResult;
+  corrections: string[];
+}
+
+export interface SeoLoopResult {
+  status: 'pass' | 'warn' | 'fail';
+  finalTitulo: string;
+  finalResumo: string;
+  finalMarkdown: string;
+  history: SeoLoopIteration[];
+  iterations: number;
+}
+
+const MAX_LOOP_ITERATIONS = 3;
+
+export function runSeoCorrectionsLoop(input: SeoReviewInput): SeoLoopResult {
+  let current: SeoReviewInput = { ...input };
+  const history: SeoLoopIteration[] = [];
+
+  for (let i = 1; i <= MAX_LOOP_ITERATIONS; i++) {
+    const review = reviewPostSeo(current);
+    const fixableIssues = review.issues.filter((issue) => FIXABLE_RULES.has(issue.rule));
+    const corrected = applyAutoCorrections(current, fixableIssues);
+
+    history.push({ iteration: i, review, corrections: corrected.corrections });
+
+    current = {
+      ...current,
+      titulo: corrected.titulo,
+      resumo: corrected.resumo,
+      conteudoMd: corrected.conteudoMd,
+    };
+
+    const hasErrors = review.issues.some((issue) => issue.level === 'error');
+    const hasWarnings = review.issues.some((issue) => issue.level === 'warning');
+
+    if (!hasErrors && !hasWarnings) {
+      return { status: 'pass', finalTitulo: current.titulo, finalResumo: current.resumo, finalMarkdown: current.conteudoMd, history, iterations: i };
+    }
+
+    if (!hasErrors && corrected.corrections.length === 0) {
+      return { status: 'warn', finalTitulo: current.titulo, finalResumo: current.resumo, finalMarkdown: current.conteudoMd, history, iterations: i };
+    }
+  }
+
+  const lastReview = reviewPostSeo(current);
+  const finalHasErrors = lastReview.issues.some((issue) => issue.level === 'error');
+  const status: SeoLoopResult['status'] = finalHasErrors ? 'fail' : 'warn';
+
+  return {
+    status,
+    finalTitulo: current.titulo,
+    finalResumo: current.resumo,
+    finalMarkdown: current.conteudoMd,
+    history,
+    iterations: MAX_LOOP_ITERATIONS,
+  };
+}
