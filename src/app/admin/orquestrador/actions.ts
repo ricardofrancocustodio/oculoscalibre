@@ -12,6 +12,7 @@ import {
   type ReviewIssueForRevision,
   type WriterBrief,
   type WriterResult,
+  type SiloSuggestionInput,
 } from '@/lib/article-writer-llm';
 
 export interface PublishOrchestratedPostInput {
@@ -146,7 +147,7 @@ export async function reviseArticleWithLlmAction(input: {
   return reviseArticleWithLlm(input);
 }
 
-export async function suggestSiloPathAction(keyword: string): Promise<string> {
+export async function suggestSiloPathAction(input: SiloSuggestionInput): Promise<string> {
   await requireAuth();
-  return suggestSiloPath(keyword);
+  return suggestSiloPath(input);
 }

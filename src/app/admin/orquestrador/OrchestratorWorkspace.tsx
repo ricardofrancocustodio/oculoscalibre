@@ -112,6 +112,7 @@ export function OrchestratorWorkspace() {
   const [publisherPending, startPublisherTransition] = useTransition();
   const [llmPending, startLlmTransition] = useTransition();
   const [siloPath, setSiloPath] = useState('formatos-de-oculos/rosto-largo');
+  const [siloDetecting, setSiloDetecting] = useState(false);
   const [produtoId, setProdutoId] = useState(productCatalog[0]?.id ?? '');
   const [jornadaNarrativa, setJornadaNarrativa] = useState<string>(() => {
     try {
@@ -246,7 +247,7 @@ export function OrchestratorWorkspace() {
       setPlannerSource(result.source);
       setPlannerWarning(result.warning ?? '');
 
-      void suggestSiloPathAction(query).then(setSiloPath).catch(() => {});
+      void suggestSiloPathAction({ keyword: query }).then(setSiloPath).catch(() => {});
     } catch {
       setPlannerResults([]);
       setKeywordsSecundarias([]);
@@ -314,13 +315,20 @@ export function OrchestratorWorkspace() {
         .then((result) => {
           setEditedMarkdown(result.conteudoMarkdown);
           const firstHeading = result.conteudoMarkdown.match(/^#\s+(.+)$/m);
-          if (firstHeading) setEditedTitle(firstHeading[1].trim());
+          const generatedTitle = firstHeading ? firstHeading[1].trim() : null;
+          if (generatedTitle) setEditedTitle(generatedTitle);
           setLlmUsage({
             modelo: result.modelo,
             input: result.usage.inputTokens,
             output: result.usage.outputTokens,
             cacheRead: result.usage.cacheReadTokens,
           });
+          setSiloDetecting(true);
+          void suggestSiloPathAction({
+            keyword: keywordPrincipal.termo,
+            titulo: generatedTitle ?? undefined,
+            resumo: effectiveDraft.resumo,
+          }).then((silo) => { setSiloPath(silo); setSiloDetecting(false); }).catch(() => setSiloDetecting(false));
         })
         .catch((error: unknown) => {
           setLlmWarning(error instanceof Error ? error.message : 'Falha ao gerar com o LLM.');
@@ -513,9 +521,6 @@ export function OrchestratorWorkspace() {
         </div>
 
         <div style={formGridStyle}>
-          <Field label="Estrutura do silo">
-            <input value={siloPath} onChange={(event) => setSiloPath(event.target.value)} style={inputStyle} />
-          </Field>
           <Field label="Produto de referência">
             <select value={produtoId} onChange={(event) => setProdutoId(event.target.value)} style={inputStyle}>
               {productCatalog.map((product) => (
@@ -883,8 +888,29 @@ export function OrchestratorWorkspace() {
 
         <div style={publisherGridStyle}>
           <div style={publisherBoxStyle}>
-            <p style={publisherLabelStyle}>Categoria / silo</p>
-            <strong>{publisherPackage.topicPath || 'a definir'}</strong>
+            <p style={publisherLabelStyle}>Silo detectado pela IA</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                value={siloPath}
+                onChange={(event) => setSiloPath(event.target.value)}
+                style={{ ...inputStyle, fontSize: '13px', padding: '7px 10px', flex: 1, minWidth: '180px' }}
+              />
+              <button
+                type="button"
+                disabled={siloDetecting || !keywordPrincipal.termo.trim()}
+                onClick={() => {
+                  setSiloDetecting(true);
+                  void suggestSiloPathAction({
+                    keyword: keywordPrincipal.termo,
+                    titulo: effectiveDraft.titulo,
+                    resumo: effectiveDraft.resumo,
+                  }).then((silo) => { setSiloPath(silo); setSiloDetecting(false); }).catch(() => setSiloDetecting(false));
+                }}
+                style={{ ...secondaryButtonStyle, fontSize: '11px', padding: '7px 12px', whiteSpace: 'nowrap' }}
+              >
+                {siloDetecting ? 'Detectando...' : '↺ Re-detectar'}
+              </button>
+            </div>
           </div>
           <div style={publisherBoxStyle}>
             <p style={publisherLabelStyle}>Slug final</p>

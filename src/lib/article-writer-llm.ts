@@ -282,11 +282,23 @@ Silos disponíveis:
 - cuidados-e-manutencao — conservação e cuidados com a armação
 - tendencias-e-estilo — moda, tendências e estilo
 
-Responda APENAS com o caminho do silo mais adequado para a keyword recebida.
+Você receberá: keyword principal, e opcionalmente o título e o resumo do artigo já gerado.
+Use todo o contexto disponível para classificar com precisão.
+Responda APENAS com o caminho do silo mais adequado.
 Sem explicação. Sem pontuação. Apenas o caminho (ex: formatos-de-oculos/rosto-largo).`;
 
-export async function suggestSiloPath(keyword: string): Promise<string> {
+export interface SiloSuggestionInput {
+  keyword: string;
+  titulo?: string;
+  resumo?: string;
+}
+
+export async function suggestSiloPath(input: SiloSuggestionInput): Promise<string> {
   const client = getClient();
+
+  const parts: string[] = [`Keyword: ${input.keyword}`];
+  if (input.titulo) parts.push(`Título do artigo: ${input.titulo}`);
+  if (input.resumo) parts.push(`Resumo do artigo: ${input.resumo.slice(0, 300)}`);
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -294,7 +306,7 @@ export async function suggestSiloPath(keyword: string): Promise<string> {
     temperature: 0,
     messages: [
       { role: 'system', content: SILO_SYSTEM_PROMPT },
-      { role: 'user', content: keyword },
+      { role: 'user', content: parts.join('\n') },
     ],
   });
 
