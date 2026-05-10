@@ -93,6 +93,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+  verification: {
+    google: "jODH0CTboNJLuTJDq_eNOAblPuPyk8c5D7fQPU0ZS0A",
+  },
   formatDetection: {
     email: false,
     telephone: false,

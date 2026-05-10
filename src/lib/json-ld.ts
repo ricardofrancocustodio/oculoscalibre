@@ -24,7 +24,7 @@ export function organizationSchema() {
     url: absoluteUrl('/'),
     logo: {
       '@type': 'ImageObject',
-      url: absoluteUrl('/logo.png'),
+      url: absoluteUrl('/img/calibre-logo.jpeg'),
     },
     description:
       'Calibre é a marca brasileira de óculos de sol em acetato premium para rostos largos, com frontal a partir de 150mm.',
