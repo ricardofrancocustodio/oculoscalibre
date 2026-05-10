@@ -5,7 +5,14 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { sql, ensurePostsTable } from '@/lib/db';
 import { buildPostPath, normalizeTopicPath, parsePostPath, slugify } from '@/lib/slug';
-import { generateArticleWithLlm, type WriterBrief, type WriterResult } from '@/lib/article-writer-llm';
+import {
+  generateArticleWithLlm,
+  reviseArticleWithLlm,
+  suggestSiloPath,
+  type ReviewIssueForRevision,
+  type WriterBrief,
+  type WriterResult,
+} from '@/lib/article-writer-llm';
 
 export interface PublishOrchestratedPostInput {
   titulo: string;
@@ -128,4 +135,18 @@ export async function publishOrchestratedPost(input: PublishOrchestratedPostInpu
 export async function generateArticleWithLlmAction(brief: WriterBrief): Promise<WriterResult> {
   await requireAuth();
   return generateArticleWithLlm(brief);
+}
+
+export async function reviseArticleWithLlmAction(input: {
+  brief: WriterBrief;
+  currentMarkdown: string;
+  issues: ReviewIssueForRevision[];
+}): Promise<WriterResult> {
+  await requireAuth();
+  return reviseArticleWithLlm(input);
+}
+
+export async function suggestSiloPathAction(keyword: string): Promise<string> {
+  await requireAuth();
+  return suggestSiloPath(keyword);
 }

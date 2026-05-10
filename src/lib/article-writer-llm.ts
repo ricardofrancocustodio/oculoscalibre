@@ -183,3 +183,121 @@ export async function generateArticleWithLlm(brief: WriterBrief): Promise<Writer
     },
   };
 }
+
+export interface ReviewIssueForRevision {
+  level: 'error' | 'warning' | 'info';
+  rule: string;
+  message: string;
+}
+
+export interface ReviseInput {
+  brief: WriterBrief;
+  currentMarkdown: string;
+  issues: ReviewIssueForRevision[];
+}
+
+function buildRevisionPrompt({ brief, currentMarkdown, issues }: ReviseInput): string {
+  const issueList = issues
+    .map((issue, index) => `${index + 1}. [${issue.level.toUpperCase()}] (${issue.rule}) ${issue.message}`)
+    .join('\n');
+
+  return `Você gerou o artigo Markdown abaixo a partir de um briefing editorial. O Revisor SEO automatizado identificou as issues listadas. Sua tarefa: corrigir CADA issue sem reescrever o artigo do zero. Preserve a estrutura, o tom, os parágrafos e as seções que NÃO estão sendo mencionados nas issues.
+
+## Briefing original (resumo)
+
+- **Keyword principal:** "${brief.keywordPrincipal}"
+- **Keywords secundárias:** ${brief.keywordsSecundarias.length ? brief.keywordsSecundarias.map((k) => `"${k}"`).join(', ') : '(nenhuma)'}
+- **Silo do artigo:** \`/blog/${brief.siloPath}/\` — qualquer link interno deve apontar para esse silo, com slugs em kebab-case plausíveis (ex.: \`/blog/${brief.siloPath}/medidas-de-frontal\`).
+- **Produto:** ${brief.produto.nome}
+
+## Artigo atual
+
+${currentMarkdown}
+
+## Issues do Revisor SEO a corrigir
+
+${issueList}
+
+## Diretrizes de correção por tipo de issue
+
+- **\`keyword.density.min\`** (densidade abaixo de 0,5%): aumente menções naturais da keyword principal e suas variações morfológicas (singular/plural, forma curta/longa). Não force — incorpore em frases que fazem sentido editorial.
+- **\`keyword.density.max\`** (densidade acima de 2%): substitua algumas menções por sinônimos (frame, armação, modelo, óculos, frontal amplo).
+- **\`h1.contains.keyword\`** ou **\`intro.contains.keyword\`**: reescreva o H1 ou o primeiro parágrafo para conter a keyword principal naturalmente.
+- **\`h1.unique\`**: garanta exatamente um H1 ("# ") no início.
+- **\`h2.minimum\`**: adicione H2s coerentes com o tema.
+- **\`meta.title.length\`** (título > 60 chars): encurte o H1 mantendo a keyword principal e o sentido.
+- **\`meta.description.short\`** ou **\`meta.description.long\`**: ajuste a abertura do artigo (primeiro parágrafo) para que tenha entre 120 e 160 caracteres ao ser usada como meta description.
+- **\`internal.links.same.silo\`** (poucos links internos): adicione 2 ou mais links Markdown apontando para subtemas plausíveis dentro de \`/blog/${brief.siloPath}/\` — use slugs em kebab-case coerentes com o tema (ex.: \`[critérios de medida](/blog/${brief.siloPath}/criterios-de-medida)\`, \`[guia de têmpora](/blog/${brief.siloPath}/medida-de-tempora)\`).
+- **\`images.alt.missing\`**: para cada imagem Markdown \`![](url)\` sem alt, adicione um alt descritivo que mencione naturalmente a keyword ou o tema.
+- **\`content.minimum.length\`**: amplie seções sem inflar — adicione exemplos concretos, não enchimento.
+- **Demais regras**: corrija de forma direta, mantendo o restante do artigo intacto.
+
+## Restrições de saída
+
+- Saída APENAS em Markdown puro, completo, do início ao fim. Sem prefácio ("Aqui está o artigo corrigido"), sem cercas \`\`\`markdown.
+- Comece com "# " (H1).
+- Mantenha o bloco final "## Sobre @oculoscalibre" com o link \`[instagram.com/oculos.calibre](https://www.instagram.com/oculos.calibre/)\`.
+- Não comente as correções — apenas devolva o artigo revisado.`;
+}
+
+export async function reviseArticleWithLlm(input: ReviseInput): Promise<WriterResult> {
+  const client = getClient();
+  const userPrompt = buildRevisionPrompt(input);
+
+  const response = await client.chat.completions.create({
+    model: DEFAULT_MODEL,
+    max_completion_tokens: 8000,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+  });
+
+  const text = (response.choices[0]?.message?.content ?? '').trim();
+  const cachedTokens = (response.usage as unknown as { prompt_tokens_details?: { cached_tokens?: number } } | undefined)
+    ?.prompt_tokens_details?.cached_tokens ?? 0;
+
+  return {
+    conteudoMarkdown: text,
+    modelo: response.model || DEFAULT_MODEL,
+    usage: {
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+      cacheReadTokens: cachedTokens,
+    },
+  };
+}
+
+const SILO_SYSTEM_PROMPT = `Você é um arquiteto de silos de conteúdo SEO para um blog de óculos de sol para rostos largos.
+
+Silos disponíveis:
+- formatos-de-oculos/rosto-largo — geral sobre formatos de rosto e óculos proporcional
+- formatos-de-oculos/rosto-largo/masculino — óculos masculinos para rosto largo
+- formatos-de-oculos/rosto-largo/feminino — óculos femininos para rosto largo
+- guias/como-escolher-oculos — guias de decisão, comparação e escolha
+- medidas-e-ajuste/como-medir-rosto — conteúdo técnico sobre medidas e ajuste
+- cuidados-e-manutencao — conservação e cuidados com a armação
+- tendencias-e-estilo — moda, tendências e estilo
+
+Responda APENAS com o caminho do silo mais adequado para a keyword recebida.
+Sem explicação. Sem pontuação. Apenas o caminho (ex: formatos-de-oculos/rosto-largo).`;
+
+export async function suggestSiloPath(keyword: string): Promise<string> {
+  const client = getClient();
+
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_completion_tokens: 60,
+    temperature: 0,
+    messages: [
+      { role: 'system', content: SILO_SYSTEM_PROMPT },
+      { role: 'user', content: keyword },
+    ],
+  });
+
+  const suggestion = (response.choices[0]?.message?.content ?? '').trim().replace(/[^a-z0-9/-]/g, '');
+  if (suggestion.length > 3 && /^[a-z0-9/-]+$/.test(suggestion)) {
+    return suggestion;
+  }
+  return 'formatos-de-oculos/rosto-largo';
+}

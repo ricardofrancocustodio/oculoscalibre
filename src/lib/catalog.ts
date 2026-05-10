@@ -1,6 +1,7 @@
 export interface ProductCatalogItem {
   id: string;
   nome: string;
+  medidaReferencia: string;
   categoria: string;
   descricao: string;
   medidas: Array<{ label: string; value: string }>;
@@ -13,6 +14,7 @@ export const productCatalog: ProductCatalogItem[] = [
   {
     id: 'mb-1572s',
     nome: 'MB-1572S',
+    medidaReferencia: 'Frontal 150–158 mm',
     categoria: 'Oculos de sol em acetato premium',
     descricao: 'Modelo de oculos de sol com frontal amplo, pensado para quem sente que armacoes comuns ficam pequenas ou apertadas.',
     medidas: [

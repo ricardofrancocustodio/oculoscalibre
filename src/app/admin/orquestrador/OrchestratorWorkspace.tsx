@@ -22,10 +22,30 @@ import {
   generateArticleWithLlmAction,
   publishOrchestratedPost,
   reviseArticleWithLlmAction,
+  suggestSiloPathAction,
   type PublishOrchestratedPostResult,
 } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
+const NARRATIVE_ROTATION_KEY = 'calibre.narrativeRotation';
+
+const BRAND_CONTEXT = {
+  tema: 'oculos de sol para rosto largo',
+  persona: 'pessoa com rosto largo que sente que oculos comuns ficam pequenos ou apertados',
+  problemaPrincipal: 'armacoes comuns apertam nas temporas e parecem pequenas no rosto',
+} as const;
+
+function getNextNarrativeIndex(): number {
+  try {
+    const stored = window.localStorage.getItem(NARRATIVE_ROTATION_KEY);
+    const current = stored !== null ? parseInt(stored, 10) : -1;
+    const next = (current + 1) % storytellingStructures.length;
+    window.localStorage.setItem(NARRATIVE_ROTATION_KEY, String(next));
+    return next;
+  } catch {
+    return 0;
+  }
+}
 
 interface SeoIterationRecord {
   iteration: number;
@@ -73,12 +93,17 @@ function suggestionToKeyword(suggestion: KeywordSuggestion): KeywordCandidate {
 export function OrchestratorWorkspace() {
   const [publisherPending, startPublisherTransition] = useTransition();
   const [llmPending, startLlmTransition] = useTransition();
-  const [tema, setTema] = useState('oculos de sol para rosto largo');
   const [siloPath, setSiloPath] = useState('formatos-de-oculos/rosto-largo');
   const [produtoId, setProdutoId] = useState(productCatalog[0]?.id ?? '');
-  const [persona, setPersona] = useState('pessoa com rosto largo que sente que oculos comuns ficam pequenos ou apertados');
-  const [problemaPrincipal, setProblemaPrincipal] = useState('armacoes comuns apertam nas temporas e parecem pequenas no rosto');
-  const [jornadaNarrativa, setJornadaNarrativa] = useState('Jornada do Cliente');
+  const [jornadaNarrativa, setJornadaNarrativa] = useState<string>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem(NARRATIVE_ROTATION_KEY) : null;
+      const idx = stored !== null ? parseInt(stored, 10) : 0;
+      return storytellingStructures[idx % storytellingStructures.length] ?? storytellingStructures[0] ?? 'Jornada do Cliente';
+    } catch {
+      return storytellingStructures[0] ?? 'Jornada do Cliente';
+    }
+  });
 
   const [plannerQuery, setPlannerQuery] = useState('');
   const [plannerResults, setPlannerResults] = useState<KeywordSuggestion[]>([]);
@@ -111,26 +136,26 @@ export function OrchestratorWorkspace() {
   ]);
 
   const plan = useMemo(() => buildEditorialOrchestration({
-    tema,
+    tema: BRAND_CONTEXT.tema,
     siloPath,
     produtoId,
-    persona,
-    problemaPrincipal,
+    persona: BRAND_CONTEXT.persona,
+    problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
     jornadaNarrativa,
     keywordPrincipal,
     keywordsSecundarias,
-  }), [tema, siloPath, produtoId, persona, problemaPrincipal, jornadaNarrativa, keywordPrincipal, keywordsSecundarias]);
+  }), [siloPath, produtoId, jornadaNarrativa, keywordPrincipal, keywordsSecundarias]);
 
   const articleDraft = useMemo(() => buildArticleDraft({
-    tema,
-    persona,
+    tema: BRAND_CONTEXT.tema,
+    persona: BRAND_CONTEXT.persona,
     jornadaNarrativa,
     keywordPrincipal,
     keywordsObrigatorias: keywordsSecundarias.filter((keyword) => keyword.termo.trim()),
     produto: plan.produto,
     integracaoConteudo: plan.integracaoConteudo,
     profile: writerProfile,
-  }), [tema, persona, jornadaNarrativa, keywordPrincipal, keywordsSecundarias, plan.produto, plan.integracaoConteudo, writerProfile]);
+  }), [jornadaNarrativa, keywordPrincipal, keywordsSecundarias, plan.produto, plan.integracaoConteudo, writerProfile]);
 
   const effectiveDraft = useMemo(() => ({
     ...articleDraft,
@@ -184,11 +209,13 @@ export function OrchestratorWorkspace() {
       }
 
       const result = data as KeywordPlannerResponse;
-        const relatedSuggestions = (result.suggestions ?? []).filter((suggestion) => normalizeTerm(suggestion.termo) !== normalizeTerm(query));
-        setPlannerResults(relatedSuggestions);
-        setKeywordsSecundarias(relatedSuggestions.map(suggestionToKeyword));
+      const relatedSuggestions = (result.suggestions ?? []).filter((suggestion) => normalizeTerm(suggestion.termo) !== normalizeTerm(query));
+      setPlannerResults(relatedSuggestions);
+      setKeywordsSecundarias(relatedSuggestions.map(suggestionToKeyword));
       setPlannerSource(result.source);
       setPlannerWarning(result.warning ?? '');
+
+      void suggestSiloPathAction(query).then(setSiloPath).catch(() => {});
     } catch {
       setPlannerResults([]);
       setKeywordsSecundarias([]);
@@ -204,8 +231,8 @@ export function OrchestratorWorkspace() {
       topicPath: siloPath,
       slugBase: plan.slugSugerido,
       writerInput: {
-        tema,
-        persona,
+        tema: BRAND_CONTEXT.tema,
+        persona: BRAND_CONTEXT.persona,
         jornadaNarrativa,
         keywordPrincipal,
         keywordsObrigatorias: keywordsSecundarias.filter((keyword) => keyword.termo.trim()),
@@ -229,13 +256,13 @@ export function OrchestratorWorkspace() {
 
     startLlmTransition(() => {
       void generateArticleWithLlmAction({
-        tema,
+        tema: BRAND_CONTEXT.tema,
         keywordPrincipal: keywordPrincipal.termo,
         keywordsSecundarias: keywordsSecundarias
           .map((keyword) => keyword.termo.trim())
           .filter(Boolean),
-        persona,
-        problemaPrincipal,
+        persona: BRAND_CONTEXT.persona,
+        problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
         provaConcreta: plan.integracaoConteudo.provaConcreta,
         beneficioCentral: plan.integracaoConteudo.beneficioCentral,
         objecaoPrincipal: plan.integracaoConteudo.objecaoPrincipal,
@@ -276,11 +303,11 @@ export function OrchestratorWorkspace() {
     setSeoStatus(null);
 
     const brief = {
-      tema,
+      tema: BRAND_CONTEXT.tema,
       keywordPrincipal: keywordPrincipal.termo,
       keywordsSecundarias: keywordsSecundarias.map((k) => k.termo.trim()).filter(Boolean),
-      persona,
-      problemaPrincipal,
+      persona: BRAND_CONTEXT.persona,
+      problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
       provaConcreta: plan.integracaoConteudo.provaConcreta,
       beneficioCentral: plan.integracaoConteudo.beneficioCentral,
       objecaoPrincipal: plan.integracaoConteudo.objecaoPrincipal,
@@ -429,32 +456,29 @@ export function OrchestratorWorkspace() {
           <a href="/admin/posts/novo" style={primaryLinkStyle}>Criar post</a>
         </div>
 
+        <div style={brandContextStyle}>
+          <div style={brandContextItemStyle}><span style={labelStyle}>Tema</span><span>{BRAND_CONTEXT.tema}</span></div>
+          <div style={brandContextItemStyle}><span style={labelStyle}>Persona</span><span>{BRAND_CONTEXT.persona}</span></div>
+          <div style={brandContextItemStyle}><span style={labelStyle}>Dor principal</span><span>{BRAND_CONTEXT.problemaPrincipal}</span></div>
+        </div>
+
         <div style={formGridStyle}>
-          <Field label="Tema base">
-            <input value={tema} onChange={(event) => setTema(event.target.value)} style={inputStyle} />
-          </Field>
           <Field label="Estrutura do silo">
             <input value={siloPath} onChange={(event) => setSiloPath(event.target.value)} style={inputStyle} />
           </Field>
-          <Field label="Produto do catalogo">
+          <Field label="Produto de referência">
             <select value={produtoId} onChange={(event) => setProdutoId(event.target.value)} style={inputStyle}>
               {productCatalog.map((product) => (
-                <option key={product.id} value={product.id}>{product.nome}</option>
+                <option key={product.id} value={product.id}>{product.medidaReferencia} — {product.nome}</option>
               ))}
             </select>
           </Field>
-          <Field label="Estrutura narrativa">
+          <Field label="Estrutura narrativa (rotação automática)">
             <select value={jornadaNarrativa} onChange={(event) => setJornadaNarrativa(event.target.value)} style={inputStyle}>
               {storytellingStructures.map((structure) => (
                 <option key={structure} value={structure}>{structure}</option>
               ))}
             </select>
-          </Field>
-          <Field label="Persona">
-            <textarea value={persona} onChange={(event) => setPersona(event.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
-          </Field>
-          <Field label="Problema principal">
-            <textarea value={problemaPrincipal} onChange={(event) => setProblemaPrincipal(event.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
         </div>
       </section>
@@ -569,6 +593,8 @@ export function OrchestratorWorkspace() {
               type="button"
               onClick={() => {
                 setWriterProfile(getRandomArticleWriterProfile());
+                const nextIdx = getNextNarrativeIndex();
+                setJornadaNarrativa(storytellingStructures[nextIdx] ?? storytellingStructures[0] ?? 'Jornada do Cliente');
                 setSeoStatus(null);
                 setSeoHistory([]);
               }}
@@ -841,6 +867,25 @@ const formGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
   gap: '16px',
+};
+
+const brandContextStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+  background: 'rgba(200,241,53,0.05)',
+  border: '1px solid rgba(200,241,53,0.15)',
+  borderRadius: '10px',
+  padding: '12px 16px',
+  marginBottom: '16px',
+};
+
+const brandContextItemStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '12px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.72)',
+  alignItems: 'baseline',
 };
 
 const labelStyle: React.CSSProperties = {
