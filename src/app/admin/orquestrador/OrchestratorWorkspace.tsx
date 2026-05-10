@@ -28,6 +28,7 @@ import {
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
 const NARRATIVE_ROTATION_KEY = 'calibre.narrativeRotation';
+const REVIEWER_LESSONS_KEY = 'calibre.reviewerLessons.v1';
 
 const BRAND_CONTEXT = {
   tema: 'oculos de sol para rosto largo',
@@ -137,6 +138,14 @@ export function OrchestratorWorkspace() {
   const [seoStatus, setSeoStatus] = useState<'pass' | 'warn' | 'fail' | null>(null);
   const [seoHistory, setSeoHistory] = useState<SeoIterationRecord[]>([]);
   const [keywordsContextuais, setKeywordsContextuais] = useState<string[]>([]);
+  const [licoesRevisor, setLicoesRevisor] = useState<string[]>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem(REVIEWER_LESSONS_KEY) : null;
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
   const [publisherError, setPublisherError] = useState('');
 
@@ -284,6 +293,7 @@ export function OrchestratorWorkspace() {
           .map((keyword) => keyword.termo.trim())
           .filter(Boolean),
         keywordsContextuais,
+        licoesRevisor,
         persona: BRAND_CONTEXT.persona,
         problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
         provaConcreta: plan.integracaoConteudo.provaConcreta,
@@ -379,6 +389,7 @@ export function OrchestratorWorkspace() {
         setSeoStatus('pass');
         setSeoRunning(false);
         setSeoPhase('');
+        accumulateLessons([...history]);
         return;
       }
 
@@ -386,6 +397,7 @@ export function OrchestratorWorkspace() {
         history.push({ iteration: i, review, deterministicFixes: corrections, llmUsed: false });
         setSeoHistory([...history]);
         setSeoStatus(hasErrors ? 'fail' : 'warn');
+        accumulateLessons([...history]);
         break;
       }
 
@@ -425,6 +437,20 @@ export function OrchestratorWorkspace() {
 
     setSeoRunning(false);
     setSeoPhase('');
+  }
+
+  function accumulateLessons(newHistory: SeoIterationRecord[]) {
+    const newIssues = newHistory.flatMap((item) =>
+      item.review.issues
+        .filter((issue) => issue.level === 'error' || issue.level === 'warning')
+        .map((issue) => `[${issue.rule}] ${issue.message}`)
+    );
+    if (!newIssues.length) return;
+    setLicoesRevisor((prev) => {
+      const merged = Array.from(new Set([...prev, ...newIssues])).slice(0, 30);
+      try { window.localStorage.setItem(REVIEWER_LESSONS_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+      return merged;
+    });
   }
 
   function publishCurrentArticle() {
@@ -678,7 +704,38 @@ export function OrchestratorWorkspace() {
           <span style={writerBadgeStyle}>Tecnica: {effectiveDraft.perfil.tecnica}</span>
           <span style={writerBadgeStyle}>Ritmo: {effectiveDraft.perfil.ritmo}</span>
           {editedMarkdown ? <span style={{ ...writerBadgeStyle, color: '#C8F135' }}>Fonte: OpenAI (editavel)</span> : <span style={writerBadgeStyle}>Fonte: template</span>}
+          {licoesRevisor.length > 0 && (
+            <span
+              title={`Lições acumuladas:\n${licoesRevisor.join('\n')}`}
+              style={{ ...writerBadgeStyle, color: '#FFB347', borderColor: 'rgba(255,179,71,0.3)', cursor: 'default' }}
+            >
+              ⚑ {licoesRevisor.length} lição{licoesRevisor.length !== 1 ? 'ões' : ''} do revisor
+            </span>
+          )}
         </div>
+
+        {licoesRevisor.length > 0 && (
+          <details style={{ marginBottom: '14px', borderLeft: '2px solid rgba(255,179,71,0.3)', paddingLeft: '12px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: '13px', color: '#FFB347', userSelect: 'none', fontWeight: 700 }}>
+              Memória do revisor — o Redator evita repetir estes erros
+            </summary>
+            <div style={{ paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {licoesRevisor.map((licao, i) => (
+                <div key={i} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>· {licao}</div>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setLicoesRevisor([]);
+                  try { window.localStorage.removeItem(REVIEWER_LESSONS_KEY); } catch { /* ignore */ }
+                }}
+                style={{ ...secondaryButtonStyle, fontSize: '11px', padding: '6px 10px', marginTop: '8px', alignSelf: 'flex-start', color: '#FF6B6B', borderColor: 'rgba(255,107,107,0.3)' }}
+              >
+                Limpar memória
+              </button>
+            </div>
+          </details>
+        )}
 
         <div style={writerSummaryStyle}>
           <strong>{effectiveDraft.titulo}</strong>

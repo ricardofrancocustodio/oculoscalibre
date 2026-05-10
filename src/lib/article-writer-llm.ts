@@ -72,6 +72,7 @@ export interface WriterBrief {
   keywordPrincipal: string;
   keywordsSecundarias: string[];
   keywordsContextuais?: string[];
+  licoesRevisor?: string[];
   persona: string;
   problemaPrincipal: string;
   provaConcreta: string;
@@ -131,7 +132,7 @@ ${brief.h2Sugeridos.length ? brief.h2Sugeridos.map((h) => `- ${h}`).join('\n') :
 
 \`/blog/${brief.siloPath}/...\` — quando criar links internos no conteúdo, prefira URLs deste mesmo silo para reforçar o cluster temático.
 
-## Perfil editorial sorteado
+${brief.licoesRevisor?.length ? `## Lições do Revisor SEO (erros encontrados em artigos anteriores — NÃO repita)\n\n${brief.licoesRevisor.map((l, i) => `${i + 1}. ${l}`).join('\n')}\n` : ''}## Perfil editorial sorteado
 
 - **Perfil:** ${brief.perfilEditorial.nome}
 - **Tamanho:** ${brief.perfilEditorial.tamanho}
