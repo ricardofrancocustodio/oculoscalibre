@@ -26,6 +26,7 @@ import {
   suggestPostClusterAction,
   type PublishOrchestratedPostResult,
   type PostCluster,
+  type ClusterPost,
 } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
@@ -1022,8 +1023,8 @@ function ClusterPostCard({
   allPosts,
   onUsar,
 }: {
-  post: import('./actions').ClusterPost;
-  allPosts: import('./actions').ClusterPost[];
+  post: ClusterPost;
+  allPosts: ClusterPost[];
   onUsar: (keyword: string) => void;
 }) {
   const isPilar = post.tipo === 'pilar';

@@ -395,5 +395,9 @@ export async function suggestPostCluster(
   });
 
   const text = (response.choices[0]?.message?.content ?? '').trim();
-  return JSON.parse(text) as PostCluster;
+  const parsed = JSON.parse(text) as Partial<PostCluster>;
+  if (!parsed.topico || !parsed.pilar || !Array.isArray(parsed.suportes)) {
+    throw new Error('Resposta do cluster incompleta. Tente novamente.');
+  }
+  return parsed as PostCluster;
 }
