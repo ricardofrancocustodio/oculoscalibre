@@ -351,6 +351,21 @@ function applyAutoCorrections(input: SeoReviewInput, issues: SeoIssue[]): { titu
   return { titulo, resumo, conteudoMd, corrections };
 }
 
+export function reviewAndAutoFix(input: SeoReviewInput): {
+  review: SeoReviewResult;
+  corrections: string[];
+  updated: SeoReviewInput;
+} {
+  const review = reviewPostSeo(input);
+  const fixableIssues = review.issues.filter((issue) => FIXABLE_RULES.has(issue.rule));
+  const corrected = applyAutoCorrections(input, fixableIssues);
+  return {
+    review,
+    corrections: corrected.corrections,
+    updated: { ...input, titulo: corrected.titulo, resumo: corrected.resumo, conteudoMd: corrected.conteudoMd },
+  };
+}
+
 export interface SeoLoopIteration {
   iteration: number;
   review: SeoReviewResult;

@@ -16,7 +16,7 @@ import {
   type ArticleWriterProfile,
 } from '@/lib/article-writer';
 import { buildPublisherPackage } from '@/lib/article-publisher';
-import { runSeoCorrectionsLoop, type SeoReviewResult, type SeoLoopResult } from '@/lib/seo-reviewer';
+import { reviewAndAutoFix, type SeoReviewResult } from '@/lib/seo-reviewer';
 import type { KeywordSuggestion } from '@/lib/keyword-planner';
 import {
   generateArticleWithLlmAction,
@@ -26,6 +26,15 @@ import {
 } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
+
+interface SeoIterationRecord {
+  iteration: number;
+  review: SeoReviewResult;
+  deterministicFixes: string[];
+  llmUsed: boolean;
+  llmTokens?: { input: number; output: number };
+  error?: string;
+}
 
 interface KeywordPlannerResponse {
   suggestions: KeywordSuggestion[];
@@ -81,8 +90,10 @@ export function OrchestratorWorkspace() {
   const [editedTitle, setEditedTitle] = useState<string | null>(null);
   const [llmWarning, setLlmWarning] = useState('');
   const [llmUsage, setLlmUsage] = useState<{ modelo: string; input: number; output: number; cacheRead: number } | null>(null);
-  const [seoReview, setSeoReview] = useState<SeoReviewResult | null>(null);
-  const [seoLoopResult, setSeoLoopResult] = useState<SeoLoopResult | null>(null);
+  const [seoRunning, setSeoRunning] = useState(false);
+  const [seoPhase, setSeoPhase] = useState('');
+  const [seoStatus, setSeoStatus] = useState<'pass' | 'warn' | 'fail' | null>(null);
+  const [seoHistory, setSeoHistory] = useState<SeoIterationRecord[]>([]);
   const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
   const [publisherError, setPublisherError] = useState('');
 
@@ -133,7 +144,7 @@ export function OrchestratorWorkspace() {
     slugBase: plan.slugSugerido,
   }), [effectiveDraft, siloPath, plan.slugSugerido]);
 
-  const seoBlocking = seoLoopResult?.status === 'fail';
+  const seoBlocking = seoStatus === 'fail';
 
   async function handlePlannerSearch(q: string) {
     const query = q.trim();
@@ -155,8 +166,8 @@ export function OrchestratorWorkspace() {
       fonteVolume: 'termo buscado no orquestrador',
       dificuldade: '',
     });
-    setSeoReview(null);
-    setSeoLoopResult(null);
+    setSeoStatus(null);
+    setSeoHistory([]);
 
     setPlannerLoading(true);
     try {
@@ -257,19 +268,112 @@ export function OrchestratorWorkspace() {
     });
   }
 
-  function runSeoLoop() {
-    const result = runSeoCorrectionsLoop({
-      titulo: effectiveDraft.titulo,
-      resumo: effectiveDraft.resumo,
-      conteudoMd: effectiveDraft.conteudoMarkdown,
+  async function runSeoReviewLoop() {
+    if (seoRunning) return;
+    setSeoRunning(true);
+    setSeoPhase('');
+    setSeoHistory([]);
+    setSeoStatus(null);
+
+    const brief = {
+      tema,
       keywordPrincipal: keywordPrincipal.termo,
-      keywordsSecundarias: keywordsSecundarias.map((keyword) => keyword.termo.trim()).filter(Boolean),
+      keywordsSecundarias: keywordsSecundarias.map((k) => k.termo.trim()).filter(Boolean),
+      persona,
+      problemaPrincipal,
+      provaConcreta: plan.integracaoConteudo.provaConcreta,
+      beneficioCentral: plan.integracaoConteudo.beneficioCentral,
+      objecaoPrincipal: plan.integracaoConteudo.objecaoPrincipal,
+      ctaSugerido: plan.integracaoConteudo.ctaSugerido,
+      tituloSugerido: plan.integracaoConteudo.tituloSugerido,
+      h2Sugeridos: plan.integracaoConteudo.h2Sugeridos,
+      produto: plan.produto,
+      perfilEditorial: {
+        nome: writerProfile.nome,
+        tamanho: writerProfile.tamanho,
+        tecnica: writerProfile.tecnica,
+        ritmo: writerProfile.ritmo,
+      },
       siloPath,
-    });
-    setSeoLoopResult(result);
-    setSeoReview(result.history[result.history.length - 1]?.review ?? null);
-    if (result.finalTitulo !== effectiveDraft.titulo) setEditedTitle(result.finalTitulo);
-    if (result.finalMarkdown !== effectiveDraft.conteudoMarkdown) setEditedMarkdown(result.finalMarkdown);
+    };
+
+    let currentMd = effectiveDraft.conteudoMarkdown;
+    let currentTitulo = effectiveDraft.titulo;
+    const history: SeoIterationRecord[] = [];
+    const MAX = 3;
+
+    for (let i = 1; i <= MAX; i++) {
+      setSeoPhase(`Iteração ${i}/${MAX} — revisando...`);
+
+      const { review, corrections, updated } = reviewAndAutoFix({
+        titulo: currentTitulo,
+        resumo: effectiveDraft.resumo,
+        conteudoMd: currentMd,
+        keywordPrincipal: keywordPrincipal.termo,
+        keywordsSecundarias: keywordsSecundarias.map((k) => k.termo.trim()).filter(Boolean),
+        siloPath,
+      });
+
+      currentMd = updated.conteudoMd;
+      currentTitulo = updated.titulo;
+      setEditedMarkdown(currentMd);
+      setEditedTitle(currentTitulo);
+
+      const hasErrors = review.issues.some((issue) => issue.level === 'error');
+      const hasWarnings = review.issues.some((issue) => issue.level === 'warning');
+
+      if (!hasErrors && !hasWarnings) {
+        history.push({ iteration: i, review, deterministicFixes: corrections, llmUsed: false });
+        setSeoHistory([...history]);
+        setSeoStatus('pass');
+        setSeoRunning(false);
+        setSeoPhase('');
+        return;
+      }
+
+      if (i === MAX) {
+        history.push({ iteration: i, review, deterministicFixes: corrections, llmUsed: false });
+        setSeoHistory([...history]);
+        setSeoStatus(hasErrors ? 'fail' : 'warn');
+        break;
+      }
+
+      setSeoPhase(`Iteração ${i}/${MAX} — corrigindo com IA...`);
+      try {
+        const llmResult = await reviseArticleWithLlmAction({
+          brief,
+          currentMarkdown: currentMd,
+          issues: review.issues,
+        });
+        currentMd = llmResult.conteudoMarkdown;
+        const h1Match = currentMd.match(/^#\s+(.+)$/m);
+        if (h1Match) currentTitulo = h1Match[1].trim();
+        setEditedMarkdown(currentMd);
+        setEditedTitle(currentTitulo);
+        history.push({
+          iteration: i,
+          review,
+          deterministicFixes: corrections,
+          llmUsed: true,
+          llmTokens: { input: llmResult.usage.inputTokens, output: llmResult.usage.outputTokens },
+        });
+        setSeoHistory([...history]);
+      } catch (error) {
+        history.push({
+          iteration: i,
+          review,
+          deterministicFixes: corrections,
+          llmUsed: false,
+          error: error instanceof Error ? error.message : 'Erro ao chamar IA',
+        });
+        setSeoHistory([...history]);
+        setSeoStatus(hasErrors ? 'fail' : 'warn');
+        break;
+      }
+    }
+
+    setSeoRunning(false);
+    setSeoPhase('');
   }
 
   function publishCurrentArticle() {
@@ -281,8 +385,8 @@ export function OrchestratorWorkspace() {
       return;
     }
 
-    if (!seoLoopResult) {
-      setPublisherError('Rode o Loop de Correção SEO antes de publicar.');
+    if (!seoStatus) {
+      setPublisherError('Rode a Revisão SEO antes de publicar.');
       return;
     }
 
@@ -465,8 +569,8 @@ export function OrchestratorWorkspace() {
               type="button"
               onClick={() => {
                 setWriterProfile(getRandomArticleWriterProfile());
-                setSeoReview(null);
-                setSeoLoopResult(null);
+                setSeoStatus(null);
+                setSeoHistory([]);
               }}
               style={secondaryButtonStyle}
             >
@@ -479,8 +583,8 @@ export function OrchestratorWorkspace() {
                 setEditedTitle(null);
                 setLlmUsage(null);
                 setLlmWarning('');
-                setSeoReview(null);
-                setSeoLoopResult(null);
+                setSeoStatus(null);
+                setSeoHistory([]);
               }}
               style={secondaryButtonStyle}
             >
@@ -535,53 +639,68 @@ export function OrchestratorWorkspace() {
             <h2 style={subtitleStyle}>Revisor SEO</h2>
             <p style={hintStyle}>Roda local via lib/seo-reviewer. Valida H1, densidade, meta length, alt em imagens, links internos do mesmo silo. Erros bloqueiam a publicacao.</p>
           </div>
-          <button type="button" onClick={runSeoLoop} style={searchButtonStyle}>
-            Rodar Loop de Correção
+          <button type="button" onClick={() => { void runSeoReviewLoop(); }} disabled={seoRunning} style={searchButtonStyle}>
+            {seoRunning ? seoPhase || 'Revisando...' : 'Revisar SEO'}
           </button>
         </div>
 
-        {!seoLoopResult && (
+        {!seoStatus && !seoRunning && (
           <div style={hintStyle}>Não revisado. Rode antes de publicar.</div>
         )}
 
-        {seoLoopResult && (
+        {seoRunning && seoHistory.length === 0 && (
+          <div style={hintStyle}>{seoPhase}</div>
+        )}
+
+        {seoHistory.length > 0 && (
           <>
             <div style={writerMetaGridStyle}>
-              <span style={{
-                ...writerBadgeStyle,
-                color: seoLoopResult.status === 'pass' ? '#C8F135' : seoLoopResult.status === 'warn' ? '#FFB347' : '#FF6B6B',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-              }}>
-                {seoLoopResult.status === 'pass' ? '✓ passou' : seoLoopResult.status === 'warn' ? '⚠ warnings' : '✗ falhou'}
-              </span>
-              <span style={writerBadgeStyle}>{seoLoopResult.iterations} iteração{seoLoopResult.iterations !== 1 ? 'ões' : ''}</span>
-              {seoReview && (
-                <>
-                  <span style={{ ...writerBadgeStyle, color: seoReview.score >= 80 ? '#C8F135' : seoReview.score >= 60 ? '#FFB347' : '#FF6B6B', fontWeight: 800 }}>
-                    Score: {seoReview.score}
-                  </span>
-                  <span style={writerBadgeStyle}>{seoReview.metrics.wordCount} palavras</span>
-                  <span style={writerBadgeStyle}>H1: {seoReview.metrics.h1Count} · H2: {seoReview.metrics.h2Count}</span>
-                  <span style={writerBadgeStyle}>Densidade: {seoReview.metrics.keywordDensity.toFixed(2)}%</span>
-                  <span style={writerBadgeStyle}>Meta title: {seoReview.metrics.metaTitleLength}/60</span>
-                  <span style={writerBadgeStyle}>Meta desc: {seoReview.metrics.metaDescriptionLength}/160</span>
-                  <span style={writerBadgeStyle}>Links internos: {seoReview.metrics.internalLinks}</span>
-                </>
+              {seoStatus && (
+                <span style={{
+                  ...writerBadgeStyle,
+                  color: seoStatus === 'pass' ? '#C8F135' : seoStatus === 'warn' ? '#FFB347' : '#FF6B6B',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                }}>
+                  {seoStatus === 'pass' ? '✓ passou' : seoStatus === 'warn' ? '⚠ warnings' : '✗ falhou'}
+                </span>
               )}
+              {seoRunning && <span style={{ ...writerBadgeStyle, color: '#FFB347' }}>{seoPhase}</span>}
+              <span style={writerBadgeStyle}>{seoHistory.length} iteração{seoHistory.length !== 1 ? 'ões' : ''} rodadas</span>
+              {(() => {
+                const last = seoHistory[seoHistory.length - 1];
+                if (!last) return null;
+                const r = last.review;
+                return (
+                  <>
+                    <span style={{ ...writerBadgeStyle, color: r.score >= 80 ? '#C8F135' : r.score >= 60 ? '#FFB347' : '#FF6B6B', fontWeight: 800 }}>Score: {r.score}</span>
+                    <span style={writerBadgeStyle}>{r.metrics.wordCount} palavras</span>
+                    <span style={writerBadgeStyle}>H1: {r.metrics.h1Count} · H2: {r.metrics.h2Count}</span>
+                    <span style={writerBadgeStyle}>Densidade: {r.metrics.keywordDensity.toFixed(2)}%</span>
+                    <span style={writerBadgeStyle}>Meta title: {r.metrics.metaTitleLength}/60</span>
+                    <span style={writerBadgeStyle}>Meta desc: {r.metrics.metaDescriptionLength}/160</span>
+                    <span style={writerBadgeStyle}>Links internos: {r.metrics.internalLinks}</span>
+                  </>
+                );
+              })()}
             </div>
 
-            {seoLoopResult.history.map((iteration) => (
-              <details key={iteration.iteration} style={{ margin: '10px 0', borderLeft: '2px solid rgba(200,241,53,0.2)', paddingLeft: '12px' }}>
+            {seoHistory.map((item) => (
+              <details key={item.iteration} style={{ margin: '10px 0', borderLeft: '2px solid rgba(200,241,53,0.2)', paddingLeft: '12px' }}>
                 <summary style={{ cursor: 'pointer', fontSize: '13px', color: 'rgba(255,255,255,0.6)', userSelect: 'none' }}>
-                  Iteração {iteration.iteration} — score {iteration.review.score} — {iteration.review.issues.length} issue{iteration.review.issues.length !== 1 ? 's' : ''}
-                  {iteration.corrections.length > 0 && <span style={{ color: '#C8F135', marginLeft: '8px' }}>({iteration.corrections.length} correção{iteration.corrections.length !== 1 ? 'ões' : ''})</span>}
+                  Iteração {item.iteration} — score {item.review.score} — {item.review.issues.length} issue{item.review.issues.length !== 1 ? 's' : ''}
+                  {item.llmUsed && <span style={{ color: '#C8F135', marginLeft: '8px' }}>✦ corrigido pela IA</span>}
+                  {item.deterministicFixes.length > 0 && <span style={{ color: '#C8F135', marginLeft: '8px' }}>({item.deterministicFixes.length} correção automática{item.deterministicFixes.length !== 1 ? 'ões' : ''})</span>}
+                  {item.error && <span style={{ color: '#FF6B6B', marginLeft: '8px' }}>erro: {item.error}</span>}
                 </summary>
                 <div style={{ paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {iteration.corrections.length > 0 && iteration.corrections.map((correction, ci) => (
-                    <div key={ci} style={{ fontSize: '12px', color: '#C8F135' }}>✓ {correction}</div>
+                  {item.deterministicFixes.map((fix, fi) => (
+                    <div key={fi} style={{ fontSize: '12px', color: '#C8F135' }}>✓ {fix}</div>
                   ))}
-                  {iteration.review.issues.map((issue, ii) => (
+                  {item.llmUsed && item.llmTokens && (
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>IA: {item.llmTokens.input} tokens entrada · {item.llmTokens.output} saída</div>
+                  )}
+                  {item.review.issues.map((issue, ii) => (
                     <div
                       key={`${issue.rule}-${ii}`}
                       style={{
@@ -592,22 +711,22 @@ export function OrchestratorWorkspace() {
                       <strong>{issue.level === 'error' ? 'erro' : issue.level === 'warning' ? 'warning' : 'info'}</strong> · {issue.message}
                     </div>
                   ))}
-                  {iteration.review.issues.length === 0 && <div style={{ fontSize: '12px', color: '#C8F135' }}>Sem issues.</div>}
+                  {item.review.issues.length === 0 && <div style={{ fontSize: '12px', color: '#C8F135' }}>Sem issues nesta iteração.</div>}
                 </div>
               </details>
             ))}
 
-            {seoLoopResult.status === 'pass' && (
+            {seoStatus === 'pass' && (
               <div style={publisherSuccessStyle}>Passou em todas as verificações. Pronto para publicar.</div>
             )}
-            {seoLoopResult.status === 'warn' && (
+            {seoStatus === 'warn' && (
               <div style={{ ...publisherWarningStyle, borderColor: '#FFB347', color: '#FFB347' }}>
-                Warnings não auto-corrigíveis (ex: densidade, links internos). Revise manualmente ou publique assim mesmo.
+                Warnings restantes não foram corrigidos automaticamente (ex.: densidade de keyword, links internos). Revise o texto manualmente ou publique assim mesmo.
               </div>
             )}
-            {seoLoopResult.status === 'fail' && (
+            {seoStatus === 'fail' && (
               <div style={publisherWarningStyle}>
-                Erros bloqueantes após {seoLoopResult.iterations} iterações. Corrija o conteúdo manualmente e rode novamente.
+                Erros bloqueantes após {seoHistory.length} iterações. Corrija o conteúdo no editor acima e rode novamente.
               </div>
             )}
           </>
@@ -624,11 +743,11 @@ export function OrchestratorWorkspace() {
           <button
             type="button"
             onClick={publishCurrentArticle}
-            disabled={publisherPending || Boolean(publisherPackage.warnings.length) || !seoLoopResult || seoBlocking}
+            disabled={publisherPending || Boolean(publisherPackage.warnings.length) || !seoStatus || seoBlocking}
             style={searchButtonStyle}
-            title={!seoLoopResult ? 'Rode o Loop de Correção SEO antes' : seoBlocking ? 'Há erros do Revisor SEO bloqueando' : ''}
+            title={!seoStatus ? 'Rode a Revisão SEO antes' : seoBlocking ? 'Há erros do Revisor SEO bloqueando' : ''}
           >
-            {publisherPending ? 'Publicando...' : !seoLoopResult ? 'Revise antes' : seoBlocking ? 'Há erros SEO' : 'Publicar agora'}
+            {publisherPending ? 'Publicando...' : !seoStatus ? 'Revise antes' : seoBlocking ? 'Há erros SEO' : 'Publicar agora'}
           </button>
         </div>
 
