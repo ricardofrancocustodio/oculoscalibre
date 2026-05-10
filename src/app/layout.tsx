@@ -97,6 +97,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: "jODH0CTboNJLuTJDq_eNOAblPuPyk8c5D7fQPU0ZS0A",
+    other: process.env.BING_WEBMASTER_TOKEN
+      ? { "msvalidate.01": process.env.BING_WEBMASTER_TOKEN }
+      : undefined,
   },
   formatDetection: {
     email: false,
