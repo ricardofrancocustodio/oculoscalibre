@@ -1,6 +1,10 @@
+'use client';
+
 import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
 import type { BlogPostView, BlogSiloSummary } from '@/lib/blog';
+import { useTheme, getThemeColors } from '@/lib/theme-context';
+import { ThemeToggle } from './ThemeToggle';
 
 const headingFont = '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif';
 
@@ -17,16 +21,35 @@ export function BlogPageChrome({
   children: ReactNode;
   actions?: ReactNode;
 }) {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+
+  const dynamicPageStyle: CSSProperties = {
+    ...pageStyle,
+    background: colors.backgroundGradient,
+    color: colors.text,
+  };
+
+  const dynamicAmbientGlowStyle: CSSProperties = {
+    ...ambientGlowStyle,
+    background: `radial-gradient(circle, ${colors.glowColor1} 0%, rgba(212,108,54,0) 72%)`,
+  };
+
+  const dynamicAmbientGlowSecondaryStyle: CSSProperties = {
+    ...ambientGlowSecondaryStyle,
+    background: `radial-gradient(circle, ${colors.glowColor2} 0%, rgba(32,125,127,0) 72%)`,
+  };
+
   return (
-    <div style={pageStyle}>
-      <div style={ambientGlowStyle} />
-      <div style={ambientGlowSecondaryStyle} />
+    <div style={dynamicPageStyle}>
+      <div style={dynamicAmbientGlowStyle} />
+      <div style={dynamicAmbientGlowSecondaryStyle} />
       <div style={shellStyle}>
         <BlogNav />
         <header style={heroStyle}>
-          <span style={eyebrowStyle}>{eyebrow}</span>
-          <h1 style={titleStyle}>{title}</h1>
-          <p style={descriptionStyle}>{description}</p>
+          <span style={{ ...eyebrowStyle, color: colors.accentPrimary }}>{eyebrow}</span>
+          <h1 style={{ ...titleStyle, color: colors.text }}>{title}</h1>
+          <p style={{ ...descriptionStyle, color: colors.secondaryText }}>{description}</p>
           {actions ? <div style={actionsStyle}>{actions}</div> : null}
         </header>
         {children}
@@ -36,57 +59,67 @@ export function BlogPageChrome({
 }
 
 export function BlogNav() {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+
   return (
-    <nav style={navStyle}>
-      <Link href="/" style={brandStyle}>
+    <nav style={{ ...navStyle, justifyContent: 'space-between' }}>
+      <Link href="/" style={{ ...brandStyle, color: colors.brandText }}>
         CALIBRE
       </Link>
       <div style={navLinksStyle}>
-        <Link href="/blog" style={navLinkStyle}>
+        <Link href="/blog" style={{ ...navLinkStyle, color: colors.navLinkText, background: colors.navLinkBackground, borderColor: colors.navLinkBorder }}>
           Blog
         </Link>
-        <Link href="/admin/posts" style={navLinkStyle}>
+        <Link href="/admin/posts" style={{ ...navLinkStyle, color: colors.navLinkText, background: colors.navLinkBackground, borderColor: colors.navLinkBorder }}>
           Admin de posts
         </Link>
+        <ThemeToggle />
       </div>
     </nav>
   );
 }
 
 export function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+
   return (
     <div style={{ marginBottom: '22px' }}>
-      <h2 style={sectionTitleStyle}>{title}</h2>
-      <p style={sectionSubtitleStyle}>{subtitle}</p>
+      <h2 style={{ ...sectionTitleStyle, color: colors.text }}>{title}</h2>
+      <p style={{ ...sectionSubtitleStyle, color: colors.secondaryText }}>{subtitle}</p>
     </div>
   );
 }
 
 export function SiloCard({ silo }: { silo: BlogSiloSummary }) {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+
   return (
-    <article style={cardStyle}>
+    <article style={{ ...cardStyle, background: colors.cardBackground, borderColor: colors.cardBorder }}>
       <div style={cardTopStyle}>
-        <span style={pillStyle}>Pillar page</span>
-        <span style={metaStyle}>{silo.totalPosts} posts</span>
+        <span style={{ ...pillStyle, color: colors.accentPrimary, background: colors.accentPrimaryLight }}>Pillar page</span>
+        <span style={{ ...metaStyle, color: colors.secondaryText }}>{silo.totalPosts} posts</span>
       </div>
-      <h3 style={cardTitleStyle}>{silo.siloLabel}</h3>
-      <p style={cardDescriptionStyle}>
+      <h3 style={{ ...cardTitleStyle, color: colors.text }}>{silo.siloLabel}</h3>
+      <p style={{ ...cardDescriptionStyle, color: colors.secondaryText }}>
         {silo.totalClusters > 0
           ? `${silo.totalClusters} subtemas conectados dentro deste silo.`
           : 'Silo principal pronto para receber conteúdos relacionados.'}
       </p>
       <div style={tagRowStyle}>
         {silo.clusters.slice(0, 3).map((cluster) => (
-          <Link key={cluster.topicPath} href={cluster.href} style={tagLinkStyle}>
+          <Link key={cluster.topicPath} href={cluster.href} style={{ ...tagLinkStyle, color: colors.accentSecondary, background: colors.accentSecondaryLight }}>
             {cluster.label}
           </Link>
         ))}
       </div>
       <div style={cardFooterStyle}>
-        <span style={metaStyle}>
+        <span style={{ ...metaStyle, color: colors.secondaryText }}>
           {silo.latestPost ? `Último post em ${silo.latestPost.publishedLabel}` : 'Sem posts publicados ainda'}
         </span>
-        <Link href={silo.href} style={primaryLinkStyle}>
+        <Link href={silo.href} style={{ ...primaryLinkStyle, color: colors.text }}>
           Abrir silo
         </Link>
       </div>
@@ -101,24 +134,27 @@ export function BlogPostCard({
   post: BlogPostView;
   kicker?: string;
 }) {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+
   return (
-    <article style={cardStyle}>
+    <article style={{ ...cardStyle, background: colors.cardBackground, borderColor: colors.cardBorder }}>
       <div style={cardTopStyle}>
-        <span style={pillStyle}>{kicker ?? post.siloLabel}</span>
-        <span style={metaStyle}>{post.readingTime} min</span>
+        <span style={{ ...pillStyle, color: colors.accentPrimary, background: colors.accentPrimaryLight }}>{kicker ?? post.siloLabel}</span>
+        <span style={{ ...metaStyle, color: colors.secondaryText }}>{post.readingTime} min</span>
       </div>
-      <h3 style={cardTitleStyle}>{post.titulo}</h3>
-      <p style={cardDescriptionStyle}>{post.resumo}</p>
+      <h3 style={{ ...cardTitleStyle, color: colors.text }}>{post.titulo}</h3>
+      <p style={{ ...cardDescriptionStyle, color: colors.secondaryText }}>{post.resumo}</p>
       <div style={tagRowStyle}>
         {post.breadcrumbs.map((crumb) => (
-          <Link key={crumb.href} href={crumb.href} style={tagLinkStyle}>
+          <Link key={crumb.href} href={crumb.href} style={{ ...tagLinkStyle, color: colors.accentSecondary, background: colors.accentSecondaryLight }}>
             {crumb.label}
           </Link>
         ))}
       </div>
       <div style={cardFooterStyle}>
-        <span style={metaStyle}>{post.publishedLabel ?? 'Rascunho'}</span>
-        <Link href={post.href} style={primaryLinkStyle}>
+        <span style={{ ...metaStyle, color: colors.secondaryText }}>{post.publishedLabel ?? 'Rascunho'}</span>
+        <Link href={post.href} style={{ ...primaryLinkStyle, color: colors.text }}>
           Ler artigo
         </Link>
       </div>
@@ -127,10 +163,13 @@ export function BlogPostCard({
 }
 
 export function EmptyState({ title, description }: { title: string; description: string }) {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+
   return (
-    <div style={emptyStateStyle}>
-      <h2 style={sectionTitleStyle}>{title}</h2>
-      <p style={sectionSubtitleStyle}>{description}</p>
+    <div style={{ ...emptyStateStyle, background: colors.panelBackground, borderColor: colors.panelBorder }}>
+      <h2 style={{ ...sectionTitleStyle, color: colors.text }}>{title}</h2>
+      <p style={{ ...sectionSubtitleStyle, color: colors.secondaryText }}>{description}</p>
     </div>
   );
 }

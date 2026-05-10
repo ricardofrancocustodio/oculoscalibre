@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, DM_Sans, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { jsonLdScript, organizationSchema, websiteSchema } from "@/lib/json-ld";
+import { ThemeProvider } from "@/lib/theme-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -130,7 +131,9 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLdScript([organizationSchema(), websiteSchema()]) }}
         />
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
