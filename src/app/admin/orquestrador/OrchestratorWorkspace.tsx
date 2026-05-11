@@ -25,9 +25,8 @@ import {
   suggestSiloPathAction,
   suggestPostClusterAction,
   type PublishOrchestratedPostResult,
-  type PostCluster,
-  type ClusterPost,
 } from './actions';
+import type { PostCluster, ClusterPost } from './cluster-types';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
 const NARRATIVE_ROTATION_KEY = 'calibre.narrativeRotation';

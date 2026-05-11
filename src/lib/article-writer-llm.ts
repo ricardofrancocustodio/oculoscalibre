@@ -1,6 +1,7 @@
 import 'server-only';
 import OpenAI from 'openai';
 import type { ProductCatalogItem } from '@/lib/catalog';
+import type { ClusterPost, PostCluster } from '@/app/admin/orquestrador/cluster-types';
 
 const SYSTEM_PROMPT = `Você é o redator editorial da Calibre — marca brasileira de óculos de sol em acetato premium para rostos largos (frontal a partir de 150mm). Slogan: "Óculos Calibre. Para quem tem presença de sobra."
 
@@ -355,21 +356,7 @@ Retorne APENAS JSON válido com esta estrutura:
   ]
 }`;
 
-export interface ClusterPost {
-  titulo: string;
-  keyword: string;
-  intencao: 'informacional' | 'comercial' | 'transacional';
-  resumo: string;
-  siloPath: string;
-  tipo: 'pilar' | 'suporte';
-  linkaPara: string[];
-}
-
-export interface PostCluster {
-  topico: string;
-  pilar: ClusterPost;
-  suportes: ClusterPost[];
-}
+export type { ClusterPost, PostCluster } from '@/app/admin/orquestrador/cluster-types';
 
 export async function suggestPostCluster(
   keyword: string,

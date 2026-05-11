@@ -14,9 +14,8 @@ import {
   type WriterBrief,
   type WriterResult,
   type SiloSuggestionInput,
-  type PostCluster,
-  type ClusterPost,
 } from '@/lib/article-writer-llm';
+import type { PostCluster, ClusterPost } from './cluster-types';
 
 export type { PostCluster, ClusterPost };
 
