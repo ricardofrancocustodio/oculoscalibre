@@ -15,9 +15,7 @@ import {
   type WriterResult,
   type SiloSuggestionInput,
 } from '@/lib/article-writer-llm';
-import type { PostCluster, ClusterPost } from './cluster-types';
-
-export type { PostCluster, ClusterPost };
+import type { PostCluster } from './cluster-types';
 
 export interface PublishOrchestratedPostInput {
   titulo: string;
