@@ -16,6 +16,7 @@ import {
   type ArticleWriterProfile,
 } from '@/lib/article-writer';
 import { buildPublisherPackage } from '@/lib/article-publisher';
+import { slugify } from '@/lib/slug';
 import { reviewAndAutoFix, type SeoReviewResult } from '@/lib/seo-reviewer';
 import type { KeywordSuggestion } from '@/lib/keyword-planner';
 import {
@@ -138,6 +139,7 @@ export function OrchestratorWorkspace() {
   const [publisherError, setPublisherError] = useState('');
   const [postCluster, setPostCluster] = useState<PostCluster | null>(null);
   const [clusterLoading, setClusterLoading] = useState(false);
+  const [clusterLinksParaLlm, setClusterLinksParaLlm] = useState<{ titulo: string; url: string; keyword: string }[]>([]);
 
   const [keywordPrincipal, setKeywordPrincipal] = useState<KeywordCandidate>({
     termo: 'oculos de sol para rosto largo masculino',
@@ -210,6 +212,7 @@ export function OrchestratorWorkspace() {
     setPlannerSource(null);
     setPostCluster(null);
     setClusterLoading(false);
+    setClusterLinksParaLlm([]);
 
     if (query.length < 2) {
       setPlannerResults([]);
@@ -262,6 +265,58 @@ export function OrchestratorWorkspace() {
     } catch {
       setPlannerResults([]);
       setKeywordsSecundarias([]);
+      setPlannerWarning('Erro de rede ao consultar o Keyword Planner.');
+    } finally {
+      setPlannerLoading(false);
+    }
+  }
+
+  async function handleUsarClusterPost(post: ClusterPost, allPosts: ClusterPost[]) {
+    // Resolve links: find the posts this one should link to and build their URLs
+    const links = allPosts
+      .filter((p) => post.linkaPara.includes(p.keyword))
+      .map((p) => ({
+        titulo: p.titulo,
+        url: `/blog/${p.siloPath}/${slugify(p.keyword)}`,
+        keyword: p.keyword,
+      }));
+    setClusterLinksParaLlm(links);
+
+    // Set as keyword principal
+    setKeywordPrincipal({
+      termo: post.keyword,
+      intencao: post.intencao,
+      volumeMensal: '',
+      fonteVolume: 'cluster semântico',
+      dificuldade: '',
+    });
+    setSeoStatus(null);
+    setSeoHistory([]);
+
+    // Fetch secondary keywords for this post's keyword — without resetting the cluster
+    setPlannerLoading(true);
+    setPlannerWarning('');
+    setPlannerSource(null);
+    try {
+      const response = await fetch(`/api/admin/keyword-planner?q=${encodeURIComponent(post.keyword)}`, { cache: 'no-store' });
+      const data = await response.json() as KeywordPlannerResponse | { error?: string };
+      if (!response.ok) {
+        setPlannerResults([]);
+        setKeywordsSecundarias([]);
+        setPlannerWarning('error' in data && data.error ? data.error : 'Não foi possível consultar o Keyword Planner.');
+        return;
+      }
+      const result = data as KeywordPlannerResponse;
+      const related = (result.suggestions ?? []).filter((s) => normalizeTerm(s.termo) !== normalizeTerm(post.keyword));
+      const ranked = [...related].sort((a, b) => opportunityScore(b) - opportunityScore(a));
+      setPlannerResults(ranked);
+      setKeywordsSecundarias(ranked.slice(0, 4).map(suggestionToKeyword));
+      setKeywordsContextuais(ranked.slice(4).map((s) => s.termo));
+      setPlannerSource(result.source);
+      setPlannerWarning(result.warning ?? '');
+      void suggestSiloPathAction({ keyword: post.keyword }).then(setSiloPath).catch(() => {});
+      // Cluster stays as-is — we deliberately do NOT call suggestPostClusterAction here
+    } catch {
       setPlannerWarning('Erro de rede ao consultar o Keyword Planner.');
     } finally {
       setPlannerLoading(false);
@@ -322,6 +377,7 @@ export function OrchestratorWorkspace() {
           ritmo: writerProfile.ritmo,
         },
         siloPath,
+        linksInternosObrigatorios: clusterLinksParaLlm.length > 0 ? clusterLinksParaLlm : undefined,
       })
         .then((result) => {
           setEditedMarkdown(result.conteudoMarkdown);
@@ -671,7 +727,7 @@ export function OrchestratorWorkspace() {
                 <ClusterPostCard
                   post={postCluster.pilar}
                   allPosts={[postCluster.pilar, ...postCluster.suportes]}
-                  onUsar={(keyword) => { void handlePlannerSearch(keyword); }}
+                  onUsar={(post) => { void handleUsarClusterPost(post, [postCluster.pilar, ...postCluster.suportes]); }}
                 />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
                   <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
@@ -683,7 +739,7 @@ export function OrchestratorWorkspace() {
                     <ClusterPostCard
                       post={post}
                       allPosts={[postCluster.pilar, ...postCluster.suportes]}
-                      onUsar={(keyword) => { void handlePlannerSearch(keyword); }}
+                      onUsar={(p) => { void handleUsarClusterPost(p, [postCluster.pilar, ...postCluster.suportes]); }}
                     />
                     {idx < postCluster.suportes.length - 1 && (
                       <div style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.2)' }}>↓</div>
@@ -698,7 +754,7 @@ export function OrchestratorWorkspace() {
               </div>
 
               <div style={{ marginTop: '14px', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
-                <strong>Como usar:</strong> clique em "Usar como base" para carregar a keyword do post no Planner e gerar o artigo. Crie um post por vez seguindo a ordem sugerida. Os links internos entre eles devem ser inseridos no texto de cada artigo.
+                <strong>Como usar:</strong> clique em "Usar como base" — o sistema carrega a keyword, busca keywords secundárias e <strong style={{ color: 'rgba(200,241,53,0.7)' }}>injeta automaticamente os links internos do cluster no artigo gerado pelo LLM</strong>. Crie um post por vez na ordem sugerida.
               </div>
             </>
           )}
@@ -1023,7 +1079,7 @@ function ClusterPostCard({
 }: {
   post: ClusterPost;
   allPosts: ClusterPost[];
-  onUsar: (keyword: string) => void;
+  onUsar: (post: ClusterPost) => void;
 }) {
   const isPilar = post.tipo === 'pilar';
   const accentColor = isPilar ? '#C8F135' : 'rgba(255,255,255,0.62)';
@@ -1062,7 +1118,7 @@ function ClusterPostCard({
         </div>
         <button
           type="button"
-          onClick={() => onUsar(post.keyword)}
+          onClick={() => onUsar(post)}
           style={{ ...secondaryButtonStyle, fontSize: '11px', padding: '6px 12px', whiteSpace: 'nowrap' }}
         >
           Usar como base →

@@ -85,6 +85,7 @@ export interface WriterBrief {
   produto: ProductCatalogItem;
   perfilEditorial: { nome: string; tamanho: string; tecnica: string; ritmo: string };
   siloPath: string;
+  linksInternosObrigatorios?: { titulo: string; url: string; keyword: string }[];
 }
 
 export interface WriterResult {
@@ -133,6 +134,7 @@ ${brief.h2Sugeridos.length ? brief.h2Sugeridos.map((h) => `- ${h}`).join('\n') :
 
 \`/blog/${brief.siloPath}/...\` — quando criar links internos no conteúdo, prefira URLs deste mesmo silo para reforçar o cluster temático.
 
+${brief.linksInternosObrigatorios?.length ? `## Links internos obrigatórios do cluster semântico\n\nEste artigo faz parte de um Link Wheel. Você DEVE inserir estes links no corpo do artigo de forma contextual e natural. Use a URL exatamente como indicada — são as URLs definitivas dos outros posts do cluster:\n\n${brief.linksInternosObrigatorios.map((l) => `- **[${l.titulo}](${l.url})** — âncora sugerida: "${l.keyword}"`).join('\n')}\n\nRegras:\n- Cada link deve aparecer em um parágrafo onde o assunto é relevante — nunca em lista solta.\n- O texto âncora pode ser adaptado, mas a URL é fixa.\n- Não agrupe todos os links no mesmo parágrafo.\n` : ''}
 ${brief.licoesRevisor?.length ? `## Lições do Revisor SEO (erros encontrados em artigos anteriores — NÃO repita)\n\n${brief.licoesRevisor.map((l, i) => `${i + 1}. ${l}`).join('\n')}\n` : ''}## Perfil editorial sorteado
 
 - **Perfil:** ${brief.perfilEditorial.nome}
