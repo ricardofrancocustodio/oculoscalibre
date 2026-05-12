@@ -6,6 +6,7 @@ export type EditorialSkillId =
   | 'keywords-researcher'
   | 'integrador-conteudo'
   | 'redator'
+  | 'cluster-semantico'
   | 'revisor-seo'
   | 'publisher'
   | 'sitemap-updater';
@@ -76,13 +77,29 @@ export const editorialSkills: EditorialSkill[] = [
   {
     id: 'redator',
     nome: 'Redator',
-    objetivo: 'Escrever o artigo usando storytelling e estruturas persuasivas adequadas a intencao de busca.',
-    entrada: ['brief integrado', 'jornada narrativa', 'palavras-chave', 'voz da marca'],
-    saida: ['rascunho em Markdown', 'titulo H1', 'headings H2/H3', 'CTA contextual'],
+    objetivo: 'Escrever o artigo usando storytelling e estruturas persuasivas adequadas a intencao de busca. Quando receber linksInternosObrigatorios do cluster semantico, inserir cada link de forma contextual e natural ao longo do texto.',
+    entrada: ['brief integrado', 'jornada narrativa', 'palavras-chave', 'voz da marca', 'linksInternosObrigatorios do cluster semantico (opcional)'],
+    saida: ['rascunho em Markdown', 'titulo H1', 'headings H2/H3', 'CTA contextual', 'links internos do cluster inseridos contextualmente'],
     criterioAceite: [
       'Usar uma narrativa principal, nao misturar todas as tecnicas no mesmo texto.',
       'Conduzir o leitor de dor para solucao com clareza.',
       'Manter tom humano, brasileiro e sem exagero promocional.',
+      'Quando linksInternosObrigatorios existirem: inserir cada link com href exato e keyword como anchor text, distribuidos ao longo do texto, nunca agrupados no mesmo paragrafo.',
+    ],
+  },
+  {
+    id: 'cluster-semantico',
+    nome: 'Cluster Semantico',
+    objetivo: 'Apos o artigo pilar ser escrito, gerar um cluster de posts de suporte interligados formando um Link Wheel semantico. Cada post de suporte linka para o Pilar e para os demais posts do anel, maximizando a autoridade tematica no Google.',
+    entrada: ['keyword principal do pilar', 'siloPath', 'keywords secundarias e contextuais', 'artigo pilar gerado'],
+    saida: ['topico do cluster', 'post pilar com keyword e linkaPara', 'lista de posts de suporte com keyword, resumo e linkaPara', 'ordem de publicacao sugerida'],
+    criterioAceite: [
+      'O cluster so e gerado apos o artigo pilar existir — nunca na pesquisa de keywords.',
+      'Cada post de suporte deve linkar para o pilar e para o proximo do anel (fechando o Link Wheel).',
+      'Links internos obrigatorios sao injetados automaticamente no LLM ao clicar em Usar como base.',
+      'Nao criar cluster com menos de 3 posts de suporte.',
+      'Keywords dos posts de suporte devem ser semanticamente relacionadas ao pilar, nunca duplicadas entre si.',
+      'O ultimo post de suporte do anel linka de volta para o primeiro, fechando o circuito.',
     ],
   },
   {
@@ -259,7 +276,25 @@ ${secondaryKeywords.length ? secondaryKeywords.map((keyword) => `- ${keyword.ter
 ### Orientacao de texto
 ${formatList(integracaoConteudo.instrucoesRedator)}
 
-## 4. Revisor SEO
+## 3.5. Links internos obrigatorios do cluster semantico
+Quando o artigo for parte de um cluster (Link Wheel), o LLM recebe um campo linksInternosObrigatorios com titulo, URL e keyword de cada post relacionado.
+Regras:
+- Inserir cada link como <a href="URL">keyword</a> contextualmente no texto, nunca em bloco separado.
+- Distribuir ao longo do artigo, nunca agrupar dois links no mesmo paragrafo.
+- Anchor text deve ser exatamente a keyword fornecida, em minusculas.
+- Nao alterar a URL fornecida.
+
+## 4. Cluster Semantico
+### Geracao
+- O cluster e gerado automaticamente apos o artigo pilar ser escrito pelo Redator.
+- Usa gpt-4o-mini (temperatura 0.2, response_format json_object) para sugerir pilar + posts de suporte.
+- Cada post de suporte recebe um mapa de links (linkaPara) apontando para o pilar e para os demais posts do anel.
+
+### Uso
+- Clicar em "Usar como base" carrega a keyword do post de suporte, busca suas keywords secundarias e injeta linksInternosObrigatorios no proximo artigo gerado pelo Redator.
+- Criar um post por vez, na ordem sugerida pelo cluster.
+
+## 5. Revisor SEO
 ### Checklist
 - H1 contem a keyword principal de forma natural.
 - Introducao responde rapidamente a intencao da busca.
