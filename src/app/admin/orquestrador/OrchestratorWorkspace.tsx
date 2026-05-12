@@ -256,12 +256,6 @@ export function OrchestratorWorkspace() {
       setPlannerWarning(result.warning ?? '');
 
       void suggestSiloPathAction({ keyword: query }).then(setSiloPath).catch(() => {});
-
-      setClusterLoading(true);
-      void suggestPostClusterAction(query, siloPath, ranked.map((s) => s.termo))
-        .then((cluster) => { setPostCluster(cluster); })
-        .catch(() => { setPostCluster(null); })
-        .finally(() => { setClusterLoading(false); });
     } catch {
       setPlannerResults([]);
       setKeywordsSecundarias([]);
@@ -396,6 +390,17 @@ export function OrchestratorWorkspace() {
             titulo: generatedTitle ?? undefined,
             resumo: effectiveDraft.resumo,
           }).then((silo) => { setSiloPath(silo); setSiloDetecting(false); }).catch(() => setSiloDetecting(false));
+          // Gerar cluster dos posts de suporte após o artigo pilar
+          setPostCluster(null);
+          setClusterLoading(true);
+          void suggestPostClusterAction(
+            keywordPrincipal.termo,
+            siloPath,
+            [...keywordsSecundarias.map((k) => k.termo.trim()).filter(Boolean), ...keywordsContextuais],
+          )
+            .then((cluster) => { setPostCluster(cluster); })
+            .catch(() => { setPostCluster(null); })
+            .finally(() => { setClusterLoading(false); });
         })
         .catch((error: unknown) => {
           setLlmWarning(error instanceof Error ? error.message : 'Falha ao gerar com o LLM.');
@@ -701,66 +706,6 @@ export function OrchestratorWorkspace() {
 
       </section>
 
-      {(clusterLoading || postCluster) && (
-        <section style={panelStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <p style={eyebrowStyle}>Passo 01 — Cluster Semântico</p>
-              <h2 style={subtitleStyle}>Bateria de Posts</h2>
-              <p style={hintStyle}>
-                Conjunto de artigos interligados formando um anel de links (<em>Link Wheel</em>). Todos os posts de suporte linkam para o Pilar e para o próximo do anel. O Google entende a unidade temática como autoridade no nicho.
-              </p>
-            </div>
-          </div>
-
-          {clusterLoading && (
-            <div style={hintStyle}>Montando o cluster semântico com IA...</div>
-          )}
-
-          {postCluster && !clusterLoading && (
-            <>
-              <div style={{ marginBottom: '16px', padding: '10px 14px', background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.15)', borderRadius: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
-                <strong style={{ color: '#C8F135' }}>Tópico do cluster:</strong> {postCluster.topico}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <ClusterPostCard
-                  post={postCluster.pilar}
-                  allPosts={[postCluster.pilar, ...postCluster.suportes]}
-                  onUsar={(post) => { void handleUsarClusterPost(post, [postCluster.pilar, ...postCluster.suportes]); }}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' }}>Posts de suporte — anel de links ↓</span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                </div>
-                {postCluster.suportes.map((post, idx) => (
-                  <div key={post.keyword} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <ClusterPostCard
-                      post={post}
-                      allPosts={[postCluster.pilar, ...postCluster.suportes]}
-                      onUsar={(p) => { void handleUsarClusterPost(p, [postCluster.pilar, ...postCluster.suportes]); }}
-                    />
-                    {idx < postCluster.suportes.length - 1 && (
-                      <div style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.2)' }}>↓</div>
-                    )}
-                    {idx === postCluster.suportes.length - 1 && (
-                      <div style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.25)', padding: '4px 0' }}>
-                        ↺ linka de volta para o 1º post de suporte (fechando o anel)
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginTop: '14px', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
-                <strong>Como usar:</strong> clique em "Usar como base" — o sistema carrega a keyword, busca keywords secundárias e <strong style={{ color: 'rgba(200,241,53,0.7)' }}>injeta automaticamente os links internos do cluster no artigo gerado pelo LLM</strong>. Crie um post por vez na ordem sugerida.
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
       <details style={{ background: '#111', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px' }}>
         <summary style={{ padding: '16px 24px', cursor: 'pointer', fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.38)', userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ color: 'rgba(200,241,53,0.5)' }}>▸</span> Bots do orquestrador — contratos e briefing (avançado)
@@ -916,6 +861,66 @@ export function OrchestratorWorkspace() {
           style={draftStyle}
         />
       </section>
+
+      {(clusterLoading || postCluster) && (
+        <section style={panelStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <p style={eyebrowStyle}>Passo 02 — Cluster Semântico</p>
+              <h2 style={subtitleStyle}>Próximos posts do cluster</h2>
+              <p style={hintStyle}>
+                Gerado automaticamente após o artigo pilar. Cada post de suporte linka para o Pilar e para os demais, formando um <em>Link Wheel</em> semântico. Clique em &ldquo;Usar como base&rdquo; para escrever o próximo post do anel.
+              </p>
+            </div>
+          </div>
+
+          {clusterLoading && (
+            <div style={hintStyle}>Montando o cluster semântico com IA...</div>
+          )}
+
+          {postCluster && !clusterLoading && (
+            <>
+              <div style={{ marginBottom: '16px', padding: '10px 14px', background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.15)', borderRadius: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
+                <strong style={{ color: '#C8F135' }}>Tópico do cluster:</strong> {postCluster.topico}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <ClusterPostCard
+                  post={postCluster.pilar}
+                  allPosts={[postCluster.pilar, ...postCluster.suportes]}
+                  onUsar={(post) => { void handleUsarClusterPost(post, [postCluster.pilar, ...postCluster.suportes]); }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' }}>Posts de suporte — anel de links ↓</span>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                </div>
+                {postCluster.suportes.map((post, idx) => (
+                  <div key={post.keyword} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <ClusterPostCard
+                      post={post}
+                      allPosts={[postCluster.pilar, ...postCluster.suportes]}
+                      onUsar={(p) => { void handleUsarClusterPost(p, [postCluster.pilar, ...postCluster.suportes]); }}
+                    />
+                    {idx < postCluster.suportes.length - 1 && (
+                      <div style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.2)' }}>↓</div>
+                    )}
+                    {idx === postCluster.suportes.length - 1 && (
+                      <div style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.25)', padding: '4px 0' }}>
+                        ↺ linka de volta para o 1º post de suporte (fechando o anel)
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '14px', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
+                <strong>Como usar:</strong> clique em &ldquo;Usar como base&rdquo; — o sistema carrega a keyword, busca keywords secundárias e <strong style={{ color: 'rgba(200,241,53,0.7)' }}>injeta automaticamente os links internos do cluster no artigo gerado pelo LLM</strong>. Crie um post por vez na ordem sugerida.
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       <section style={panelStyle}>
         <div style={sectionHeaderStyle}>
