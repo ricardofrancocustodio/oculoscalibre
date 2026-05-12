@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   buildEditorialOrchestration,
   buildSkillPrompt,
@@ -116,15 +116,7 @@ export function OrchestratorWorkspace() {
   const [siloPath, setSiloPath] = useState('formatos-de-oculos/rosto-largo');
   const [siloDetecting, setSiloDetecting] = useState(false);
   const [produtoId, setProdutoId] = useState(productCatalog[0]?.id ?? '');
-  const [jornadaNarrativa, setJornadaNarrativa] = useState<string>(() => {
-    try {
-      const stored = typeof window !== 'undefined' ? window.localStorage.getItem(NARRATIVE_ROTATION_KEY) : null;
-      const idx = stored !== null ? parseInt(stored, 10) : 0;
-      return storytellingStructures[idx % storytellingStructures.length] ?? storytellingStructures[0] ?? 'Jornada do Cliente';
-    } catch {
-      return storytellingStructures[0] ?? 'Jornada do Cliente';
-    }
-  });
+  const [jornadaNarrativa, setJornadaNarrativa] = useState<string>(storytellingStructures[0] ?? 'Jornada do Cliente');
 
   const [plannerQuery, setPlannerQuery] = useState('');
   const [plannerResults, setPlannerResults] = useState<KeywordSuggestion[]>([]);
@@ -141,14 +133,7 @@ export function OrchestratorWorkspace() {
   const [seoStatus, setSeoStatus] = useState<'pass' | 'warn' | 'fail' | null>(null);
   const [seoHistory, setSeoHistory] = useState<SeoIterationRecord[]>([]);
   const [keywordsContextuais, setKeywordsContextuais] = useState<string[]>([]);
-  const [licoesRevisor, setLicoesRevisor] = useState<string[]>(() => {
-    try {
-      const stored = typeof window !== 'undefined' ? window.localStorage.getItem(REVIEWER_LESSONS_KEY) : null;
-      return stored ? (JSON.parse(stored) as string[]) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [licoesRevisor, setLicoesRevisor] = useState<string[]>([]);
   const [publisherResult, setPublisherResult] = useState<PublishOrchestratedPostResult | null>(null);
   const [publisherError, setPublisherError] = useState('');
   const [postCluster, setPostCluster] = useState<PostCluster | null>(null);
@@ -166,6 +151,20 @@ export function OrchestratorWorkspace() {
     { termo: 'oculos que nao aperta na lateral', intencao: 'problema/solucao', volumeMensal: '', fonteVolume: '', dificuldade: '' },
     emptyKeyword(),
   ]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(NARRATIVE_ROTATION_KEY);
+      const idx = stored !== null ? parseInt(stored, 10) : 0;
+      const value = storytellingStructures[idx % storytellingStructures.length] ?? storytellingStructures[0] ?? 'Jornada do Cliente';
+      setJornadaNarrativa(value);
+    } catch { /* ignore */ }
+    try {
+      const stored = window.localStorage.getItem(REVIEWER_LESSONS_KEY);
+      if (stored) setLicoesRevisor(JSON.parse(stored) as string[]);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const plan = useMemo(() => buildEditorialOrchestration({
     tema: BRAND_CONTEXT.tema,
