@@ -606,11 +606,11 @@ export function OrchestratorWorkspace() {
       </section>
 
       <section style={panelStyle}>
-        <p style={eyebrowStyle}>Skill 1</p>
+        <p style={eyebrowStyle}>Passo 01 &mdash; Pesquisa de Keywords</p>
         <div style={keywordResearchHeaderStyle}>
           <div>
             <h2 style={{ ...subtitleStyle, margin: 0 }}>Keywords Researcher</h2>
-            <p style={hintStyle}>Busque a palavra-chave principal do artigo. As caudas longas retornadas entram automaticamente como termos obrigatorios para o Redator.</p>
+            <p style={hintStyle}>Busque a palavra-chave principal. As caudas longas entram automaticamente como termos obrigat&oacute;rios no artigo. O cluster sem&acirc;ntico &eacute; gerado em seguida.</p>
           </div>
           <form
             style={keywordSearchFormStyle}
@@ -705,8 +705,8 @@ export function OrchestratorWorkspace() {
         <section style={panelStyle}>
           <div style={sectionHeaderStyle}>
             <div>
-              <p style={eyebrowStyle}>Skill 1 — Estratégia de Conteúdo</p>
-              <h2 style={subtitleStyle}>Bateria de Posts — Cluster Semântico</h2>
+              <p style={eyebrowStyle}>Passo 01 — Cluster Semântico</p>
+              <h2 style={subtitleStyle}>Bateria de Posts</h2>
               <p style={hintStyle}>
                 Conjunto de artigos interligados formando um anel de links (<em>Link Wheel</em>). Todos os posts de suporte linkam para o Pilar e para o próximo do anel. O Google entende a unidade temática como autoridade no nicho.
               </p>
@@ -761,39 +761,45 @@ export function OrchestratorWorkspace() {
         </section>
       )}
 
-      <section style={skillsGridStyle}>
-        {editorialSkills.map((skill, index) => (
-          <article key={skill.id} style={skillCardStyle}>
-            <span style={stepStyle}>{String(index + 1).padStart(2, '0')}</span>
-            <h3 style={skillTitleStyle}>{skill.nome}</h3>
-            <p style={skillTextStyle}>{skill.objetivo}</p>
-            <details style={detailsStyle}>
-              <summary style={summaryStyle}>Contrato do bot</summary>
-              <pre style={promptStyle}>{buildSkillPrompt(skill)}</pre>
-            </details>
-          </article>
-        ))}
-      </section>
-
-      <section style={panelStyle}>
-        <div style={sectionHeaderStyle}>
-          <div>
-            <p style={eyebrowStyle}>Saida do orquestrador</p>
-            <h2 style={subtitleStyle}>Briefing para os bots</h2>
-          </div>
-          <span style={pathBadgeStyle}>/blog/{plan.postPathSugerido || 'silo/artigo'}</span>
+      <details style={{ background: '#111', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px' }}>
+        <summary style={{ padding: '16px 24px', cursor: 'pointer', fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.38)', userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: 'rgba(200,241,53,0.5)' }}>▸</span> Bots do orquestrador — contratos e briefing (avançado)
+        </summary>
+        <div style={{ padding: '0 24px 24px', display: 'grid', gap: '20px' }}>
+          <section style={skillsGridStyle}>
+            {editorialSkills.map((skill, index) => (
+              <article key={skill.id} style={skillCardStyle}>
+                <span style={stepStyle}>{String(index + 1).padStart(2, '0')}</span>
+                <h3 style={skillTitleStyle}>{skill.nome}</h3>
+                <p style={skillTextStyle}>{skill.objetivo}</p>
+                <details style={detailsStyle}>
+                  <summary style={summaryStyle}>Contrato do bot</summary>
+                  <pre style={promptStyle}>{buildSkillPrompt(skill)}</pre>
+                </details>
+              </article>
+            ))}
+          </section>
+          <section style={panelStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={eyebrowStyle}>Saída do orquestrador</p>
+                <h2 style={subtitleStyle}>Briefing para os bots</h2>
+              </div>
+              <span style={pathBadgeStyle}>/blog/{plan.postPathSugerido || 'silo/artigo'}</span>
+            </div>
+            <textarea readOnly value={plan.briefMarkdown} style={briefStyle} />
+          </section>
         </div>
-        <textarea readOnly value={plan.briefMarkdown} style={briefStyle} />
-      </section>
+      </details>
 
       <section style={panelStyle}>
-        <div style={sectionHeaderStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '18px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <div>
-            <p style={eyebrowStyle}>Skill 3</p>
+            <p style={eyebrowStyle}>Passo 02 — Geração</p>
             <h2 style={subtitleStyle}>Redator</h2>
-            <p style={hintStyle}>Rascunho via template (rapido) ou gerado pelo LLM (OpenAI, ~2000 palavras). Edite livremente antes de revisar e publicar.</p>
+            <p style={hintStyle}>Selecione uma keyword no Passo 01, então gere o artigo com OpenAI (~2000 palavras). Edite livremente antes de revisar.</p>
           </div>
-          <div style={buttonGroupStyle}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               type="button"
               onClick={() => {
@@ -803,9 +809,9 @@ export function OrchestratorWorkspace() {
                 setSeoStatus(null);
                 setSeoHistory([]);
               }}
-              style={secondaryButtonStyle}
+              style={{ ...secondaryButtonStyle, fontSize: '12px', padding: '9px 13px' }}
             >
-              Nova variacao
+              ↺ Nova variação
             </button>
             <button
               type="button"
@@ -817,17 +823,34 @@ export function OrchestratorWorkspace() {
                 setSeoStatus(null);
                 setSeoHistory([]);
               }}
-              style={secondaryButtonStyle}
+              style={{ ...secondaryButtonStyle, fontSize: '12px', padding: '9px 13px' }}
             >
               Voltar ao template
             </button>
-            <button type="button" onClick={generateWithLlm} disabled={llmPending} style={searchButtonStyle}>
-              {llmPending ? 'Gerando com OpenAI...' : 'Gerar com OpenAI'}
-            </button>
-            <button type="button" onClick={prepareDraftInPostEditor} style={secondaryButtonStyle}>
+            <button type="button" onClick={prepareDraftInPostEditor} style={{ ...secondaryButtonStyle, fontSize: '12px', padding: '9px 13px' }}>
               Abrir como post
             </button>
           </div>
+        </div>
+
+        <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {clusterLinksParaLlm.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.2)', borderRadius: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.72)' }}>
+              <span style={{ color: '#C8F135', fontSize: '16px' }}>✓</span>
+              <span><strong style={{ color: '#C8F135' }}>{clusterLinksParaLlm.length} link{clusterLinksParaLlm.length !== 1 ? 's' : ''} do cluster</strong> serão injetados automaticamente no artigo</span>
+              <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(255,255,255,0.38)', fontFamily: 'monospace' }}>
+                {clusterLinksParaLlm.map((l) => l.keyword).join(' · ')}
+              </span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={generateWithLlm}
+            disabled={llmPending || !keywordPrincipal.termo.trim()}
+            style={{ ...searchButtonStyle, width: '100%', padding: '16px', fontSize: '15px', borderRadius: '12px', opacity: (!keywordPrincipal.termo.trim() && !llmPending) ? 0.45 : 1 }}
+          >
+            {llmPending ? '⏳  Gerando artigo com OpenAI...' : `✦  Gerar artigo${keywordPrincipal.termo.trim() ? ` — "${keywordPrincipal.termo}"` : ' (defina a keyword no Passo 01)'}`}
+          </button>
         </div>
 
         <div style={writerMetaGridStyle}>
@@ -897,7 +920,7 @@ export function OrchestratorWorkspace() {
       <section style={panelStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <p style={eyebrowStyle}>Skill 4</p>
+            <p style={eyebrowStyle}>Passo 03 — Revisão SEO</p>
             <h2 style={subtitleStyle}>Revisor SEO</h2>
             <p style={hintStyle}>Roda local via lib/seo-reviewer. Valida H1, densidade, meta length, alt em imagens, links internos do mesmo silo. Erros bloqueiam a publicacao.</p>
           </div>
@@ -998,7 +1021,7 @@ export function OrchestratorWorkspace() {
       <section style={panelStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <p style={eyebrowStyle}>Skill 5</p>
+            <p style={eyebrowStyle}>Passo 04 — Publicação</p>
             <h2 style={subtitleStyle}>Publisher</h2>
             <p style={hintStyle}>Recebe o texto revisado, valida silo e slug, publica o post na categoria correta e revalida blog e sitemap.</p>
           </div>
