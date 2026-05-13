@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { MarkdownPreview } from './MarkdownPreview';
 import { normalizeTopicPath, parsePostPath } from '@/lib/slug';
+import { uploadInlineImage } from './actions';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
 
@@ -65,6 +66,9 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
   const [coverAlt, setCoverAlt] = useState(initial?.cover_alt ?? '');
   const [noindex, setNoindex] = useState(Boolean(initial?.noindex));
   const [pending, startTransition] = useTransition();
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (mode !== 'criar' || initial) return;
@@ -117,6 +121,44 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
     startTransition(() => {
       void action(fd);
     });
+  }
+
+  function insertAtCursor(text: string) {
+    const el = textareaRef.current;
+    if (!el) {
+      setConteudo((c) => c + text);
+      return;
+    }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const selected = el.value.slice(start, end);
+    const inserted = text.includes('$SEL') && selected
+      ? text.replace('$SEL', selected)
+      : text.replace('$SEL', '');
+    const newVal = el.value.slice(0, start) + inserted + el.value.slice(end);
+    setConteudo(newVal);
+    requestAnimationFrame(() => {
+      el.focus();
+      const newPos = start + inserted.length;
+      el.setSelectionRange(newPos, newPos);
+    });
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const result = await uploadInlineImage(fd);
+      insertAtCursor(`\n\n![](${result.url})\n\n`);
+    } catch {
+      alert('Erro ao fazer upload da imagem.');
+    } finally {
+      setUploadingImage(false);
+      if (imgInputRef.current) imgInputRef.current.value = '';
+    }
   }
 
   return (
@@ -305,8 +347,47 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', minHeight: '400px' }}>
-        <Field label="Conteúdo (Markdown)">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Conteúdo (Markdown)
+          </span>
+
+          {/* Toolbar */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', padding: '6px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px 8px 0 0', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none' }}>
+            <input
+              ref={imgInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleImageUpload}
+            />
+            <ToolbarBtn
+              onClick={() => imgInputRef.current?.click()}
+              title="Inserir imagem entre tópicos"
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? '⏳' : '🖼'} Imagem
+            </ToolbarBtn>
+            <ToolbarSep />
+            <ToolbarBtn onClick={() => insertAtCursor('**$SEL**')} title="Negrito">
+              <strong>B</strong>
+            </ToolbarBtn>
+            <ToolbarBtn onClick={() => insertAtCursor('*$SEL*')} title="Itálico">
+              <em>I</em>
+            </ToolbarBtn>
+            <ToolbarSep />
+            <ToolbarBtn onClick={() => insertAtCursor('\n\n## $SEL')} title="Subtítulo H2">H2</ToolbarBtn>
+            <ToolbarBtn onClick={() => insertAtCursor('\n\n### $SEL')} title="Subtítulo H3">H3</ToolbarBtn>
+            <ToolbarSep />
+            <ToolbarBtn onClick={() => insertAtCursor('\n\n---\n\n')} title="Linha separadora">—</ToolbarBtn>
+            <ToolbarBtn onClick={() => insertAtCursor('\n> $SEL')} title="Citação">❝</ToolbarBtn>
+            <ToolbarBtn onClick={() => insertAtCursor('[$SEL](url)')} title="Link">🔗</ToolbarBtn>
+            <ToolbarSep />
+            <ToolbarBtn onClick={() => insertAtCursor('\n- $SEL')} title="Lista não-ordenada">• Lista</ToolbarBtn>
+          </div>
+
           <textarea
+            ref={textareaRef}
             required
             name="conteudo_md"
             value={conteudo}
@@ -318,9 +399,10 @@ export function PostForm({ mode, initial, action, publishLabel }: PostFormProps)
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
               fontSize: '13px',
               lineHeight: '1.5',
+              borderRadius: '0 0 8px 8px',
             }}
           />
-        </Field>
+        </div>
 
         <Field label="Preview">
           <div
@@ -468,4 +550,54 @@ function btnStyle(variant: 'primary' | 'secondary' | 'ghost'): React.CSSProperti
     fontSize: '13px',
     cursor: 'pointer',
   };
+}
+
+function ToolbarBtn({
+  onClick,
+  title,
+  disabled,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: 'rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        color: disabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
+        borderRadius: '6px',
+        padding: '3px 9px',
+        fontSize: '12px',
+        fontWeight: 600,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        lineHeight: '1.6',
+        fontFamily: 'inherit',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ToolbarSep() {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: '1px',
+        height: '20px',
+        background: 'rgba(255,255,255,0.1)',
+        alignSelf: 'center',
+        margin: '0 2px',
+      }}
+    />
+  );
 }

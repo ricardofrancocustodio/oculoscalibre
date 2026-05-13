@@ -255,6 +255,20 @@ export async function deletePost(formData: FormData) {
   redirect('/admin/posts?ok=excluido');
 }
 
+export async function uploadInlineImage(formData: FormData): Promise<{ url: string }> {
+  await requireAuth();
+  const file = formData.get('file') as File | null;
+  if (!file || file.size === 0) throw new Error('Arquivo inválido.');
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const key = `blog/inline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const blob = await put(key, file, {
+    access: 'public',
+    addRandomSuffix: false,
+    contentType: file.type || undefined,
+  });
+  return { url: blob.url };
+}
+
 export async function togglePublish(formData: FormData) {
   await requireAuth();
   await ensurePostsTable();
