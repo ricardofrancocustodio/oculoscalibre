@@ -19,6 +19,8 @@ export interface ProductCatalogItem {
   };
   /** URL da imagem do produto para feeds */
   imagemUrl?: string;
+  /** Galeria do produto (caminhos absolutos a partir de /public) */
+  imagens?: string[];
   /** Variantes de tamanho (ex: Presence S/M-L/XXL) */
   variantes?: Array<{ tamanho: string; frontal: string; haste: string; lente: string }>;
 }
@@ -50,7 +52,18 @@ export const productCatalog: ProductCatalogItem[] = [
       'visual premium em acetato preto',
       'proteção UV400 para uso diario',
     ],
-    url: '/',
+    url: '/produto/mb-1572s',
+    price: '449',
+    stock: 'PreOrder',
+    imagemUrl: '/img/oculos/fotoscalibre/fundo branco/20260505_184847-removebg-preview.png',
+    imagens: [
+      '/img/oculos/fotoscalibre/fundo branco/20260505_184847-removebg-preview.png',
+      '/img/oculos/fotoscalibre/fundo branco/20260510_130537-removebg-preview.png',
+      '/img/oculos/fotoscalibre/20260505_184758.jpg',
+      '/img/oculos/fotoscalibre/20260505_184805.jpg',
+      '/img/oculos/fotoscalibre/20260505_184813.jpg',
+      '/img/oculos/fotoscalibre/20260510_130608.jpg',
+    ],
   },
   {
     id: 'viking',
@@ -76,9 +89,16 @@ export const productCatalog: ProductCatalogItem[] = [
       'armacao em policarbonato de alta resistencia',
       'encaixe proporcional para frontais acima de 150mm',
     ],
-    url: '/#viking',
+    url: '/produto/viking',
     stock: 'PreOrder',
     imagemUrl: '/img/oculos/fotoscalibre/fundo branco/viking/1778079940314.png',
+    imagens: [
+      '/img/oculos/fotoscalibre/fundo branco/viking/1778079940314.png',
+      '/img/oculos/fotoscalibre/fundo branco/viking/Gemini_Generated_Image_1cr10z1cr10z1cr1.png',
+      '/img/oculos/fotoscalibre/fundo branco/viking/Gemini_Generated_Image_2vnn6j2vnn6j2vnn.png',
+      '/img/oculos/fotoscalibre/fundo branco/viking/Gemini_Generated_Image_j3y9ggj3y9ggj3y9.png',
+      '/img/oculos/fotoscalibre/fundo branco/viking/Gemini_Generated_Image_pr4llqpr4llqpr4l.png',
+    ],
   },
   {
     id: 'presence',
@@ -107,9 +127,15 @@ export const productCatalog: ProductCatalogItem[] = [
       'protecao UV400',
       'compativel com frontais entre 138mm e 158mm',
     ],
-    url: '/#presence',
+    url: '/produto/presence',
     stock: 'PreOrder',
     imagemUrl: '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_8x6czt8x6czt8x6c.png',
+    imagens: [
+      '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_8x6czt8x6czt8x6c.png',
+      '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_alr1dfalr1dfalr1.png',
+      '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_dlwz1sdlwz1sdlwz.png',
+      '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_vi1ad8vi1ad8vi1a.png',
+    ],
     variantes: [
       { tamanho: 'S',   frontal: '138mm', haste: '135mm', lente: '60×42.5mm' },
       { tamanho: 'M-L', frontal: '148mm', haste: '136mm', lente: '64×44mm'   },

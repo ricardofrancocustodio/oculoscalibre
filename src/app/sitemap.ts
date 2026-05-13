@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { getPublishedPosts } from '@/lib/db';
+import { productCatalog } from '@/lib/catalog';
 import { parsePostPath } from '@/lib/slug';
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    ...productCatalog.map((product) => ({
+      url: absoluteUrl(`/produto/${product.id}`),
+      lastModified: now,
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
+    })),
     ...topicPaths.map((topicPath) => ({
       url: absoluteUrl(`/blog/${topicPath}`),
       lastModified: now,

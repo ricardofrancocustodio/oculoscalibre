@@ -1061,9 +1061,9 @@ export function LandingClient() {
         }
         .btn-catalog {
           margin-top: 8px;
-          background: transparent;
-          color: var(--lime);
-          border: 1px solid rgba(200,241,53,0.35);
+          background: var(--lime);
+          color: #0A0A0A;
+          border: 1px solid var(--lime);
           font-weight: 700;
           font-size: 12px;
           letter-spacing: 0.06em;
@@ -1071,13 +1071,33 @@ export function LandingClient() {
           padding: 11px 20px;
           cursor: pointer;
           width: 100%;
-          transition: background 0.15s, color 0.15s;
+          transition: opacity 0.15s, transform 0.15s;
           text-transform: uppercase;
           font-family: inherit;
         }
         .btn-catalog:hover {
-          background: var(--lime);
-          color: #0A0A0A;
+          opacity: 0.92;
+          transform: scale(1.01);
+        }
+        .btn-catalog-secondary {
+          margin-top: 8px;
+          background: transparent;
+          color: var(--muted);
+          border: 1px solid var(--border);
+          font-weight: 600;
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          border-radius: 100px;
+          padding: 10px 20px;
+          cursor: pointer;
+          width: 100%;
+          transition: color 0.15s, border-color 0.15s;
+          text-transform: uppercase;
+          font-family: inherit;
+        }
+        .btn-catalog-secondary:hover {
+          color: var(--lime);
+          border-color: rgba(200,241,53,0.35);
         }
       `}</style>
 
@@ -1286,25 +1306,37 @@ export function LandingClient() {
               },
             ].map((model) => (
               <div key={model.id} className="catalog-card">
-                <div className="catalog-card-img-wrapper">
-                  <img
-                    src={model.img}
-                    alt={`Óculos Calibre ${model.nome} — ${model.frontal} de frontal`}
-                    className="catalog-card-img"
-                  />
-                  <span className="catalog-frontal-badge">{model.frontal}</span>
-                </div>
+                <a href={`/produto/${model.id}`} aria-label={`Ver ${model.nome}`} style={{ display: 'block' }}>
+                  <div className="catalog-card-img-wrapper">
+                    <img
+                      src={model.img}
+                      alt={`Óculos Calibre ${model.nome} — ${model.frontal} de frontal`}
+                      className="catalog-card-img"
+                    />
+                    <span className="catalog-frontal-badge">{model.frontal}</span>
+                  </div>
+                </a>
                 <div className="catalog-card-body">
                   <span className="catalog-card-tag">{model.tag}</span>
-                  <div className="catalog-card-name">{model.nome}</div>
+                  <a href={`/produto/${model.id}`} className="catalog-card-name" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+                    {model.nome}
+                  </a>
                   <p className="catalog-card-desc">{model.desc}</p>
                   <div className="catalog-card-chips">
                     {model.chips.map((c) => (
                       <span key={c} className="catalog-chip">{c}</span>
                     ))}
                   </div>
-                  <button
+                  <a
+                    href={`/produto/${model.id}`}
                     className="btn-catalog"
+                    style={{ textDecoration: 'none', textAlign: 'center', display: 'block' }}
+                  >
+                    Ver produto
+                  </a>
+                  <button
+                    type="button"
+                    className="btn-catalog-secondary"
                     onClick={() => handleReserveForProduct(model.produto)}
                   >
                     Entrar na lista de espera
