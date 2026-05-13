@@ -70,9 +70,10 @@ interface ReserveModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  produto?: string;
 }
 
-function ReserveModal({ open, onClose, onSuccess }: ReserveModalProps) {
+function ReserveModal({ open, onClose, onSuccess, produto = 'MB-1572S' }: ReserveModalProps) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -122,7 +123,7 @@ function ReserveModal({ open, onClose, onSuccess }: ReserveModalProps) {
           email: email.trim(),
           whatsapp: whatsapp.trim(),
           medida: medida.trim(),
-          produto: "MB-1572S",
+          produto: produto,
           origem: typeof window !== "undefined" ? window.location.href : "",
         }),
       });
@@ -151,7 +152,7 @@ function ReserveModal({ open, onClose, onSuccess }: ReserveModalProps) {
           ×
         </button>
 
-        <span className="section-tag">Lista de espera · MB-1572S</span>
+        <span className="section-tag">Lista de espera · {produto}</span>
         <h3 className="modal-title">
           ENTRE NA <span className="hero-title-accent">LISTA</span>
         </h3>
@@ -234,6 +235,7 @@ export function LandingClient() {
   const [selectedImg, setSelectedImg] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [selectedProduto, setSelectedProduto] = useState('MB-1572S');
   const [vagasReservadas, setVagasReservadas] = useState<number | null>(null);
 
   useEffect(() => {
@@ -257,6 +259,13 @@ export function LandingClient() {
 
   const handleReserve = () => {
     setConfirmed(false);
+    setSelectedProduto('MB-1572S');
+    setModalOpen(true);
+  };
+
+  const handleReserveForProduct = (prod: string) => {
+    setConfirmed(false);
+    setSelectedProduto(prod);
     setModalOpen(true);
   };
 
@@ -949,6 +958,127 @@ export function LandingClient() {
           margin-top: 4px;
           line-height: 1.5;
         }
+
+        /* ── COLEÇÃO ── */
+        .catalog-section {
+          max-width: 1152px;
+          margin: 0 auto;
+          padding: 80px 24px;
+          text-align: center;
+        }
+        .catalog-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
+        @media (max-width: 900px) {
+          .catalog-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 580px) {
+          .catalog-grid { grid-template-columns: 1fr; max-width: 440px; margin-left: auto; margin-right: auto; }
+        }
+        .catalog-card {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          transition: border-color 0.25s, transform 0.25s;
+          text-align: left;
+        }
+        .catalog-card:hover {
+          border-color: rgba(200,241,53,0.35);
+          transform: translateY(-4px);
+        }
+        .catalog-card-img-wrapper {
+          position: relative;
+          width: 100%;
+          background: #111;
+          aspect-ratio: 4/3;
+          overflow: hidden;
+        }
+        .catalog-card-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+          padding: 12px;
+        }
+        .catalog-frontal-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          background: rgba(200,241,53,0.12);
+          border: 1px solid rgba(200,241,53,0.25);
+          color: var(--lime);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          padding: 4px 10px;
+          border-radius: 100px;
+          text-transform: uppercase;
+        }
+        .catalog-card-body {
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          flex: 1;
+        }
+        .catalog-card-tag {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--muted);
+        }
+        .catalog-card-name {
+          font-family: var(--font-bebas), sans-serif;
+          font-size: 36px;
+          color: white;
+          letter-spacing: 0.04em;
+          line-height: 1;
+        }
+        .catalog-card-desc {
+          color: var(--muted);
+          font-size: 13px;
+          line-height: 1.6;
+          flex: 1;
+        }
+        .catalog-card-chips {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .catalog-chip {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--border);
+          border-radius: 100px;
+          padding: 3px 10px;
+          font-size: 11px;
+          color: var(--muted);
+        }
+        .btn-catalog {
+          margin-top: 8px;
+          background: transparent;
+          color: var(--lime);
+          border: 1px solid rgba(200,241,53,0.35);
+          font-weight: 700;
+          font-size: 12px;
+          letter-spacing: 0.06em;
+          border-radius: 100px;
+          padding: 11px 20px;
+          cursor: pointer;
+          width: 100%;
+          transition: background 0.15s, color 0.15s;
+          text-transform: uppercase;
+          font-family: inherit;
+        }
+        .btn-catalog:hover {
+          background: var(--lime);
+          color: #0A0A0A;
+        }
       `}</style>
 
       <div className="grain">
@@ -1111,6 +1241,80 @@ export function LandingClient() {
           </button>
         </section>
 
+        {/* ── COLEÇÃO ── */}
+        <section className="catalog-section">
+          <span className="section-tag">Nossa Coleção</span>
+          <h2 className="specs-title">
+            TRÊS MODELOS,{' '}
+            <span className="hero-title-accent">UM PROPÓSITO</span>
+          </h2>
+          <p style={{ color: 'var(--muted)', fontSize: '15px', lineHeight: '1.7', maxWidth: '540px', margin: '0 auto 40px' }}>
+            Desenvolvidos para quem sempre ficou de fora. Escolha o modelo certo para o seu estilo.
+          </p>
+
+          <div className="catalog-grid">
+            {[
+              {
+                id: 'mb-1572s',
+                nome: 'MB-1572S',
+                tag: 'Clássico acetato',
+                frontal: '150.7mm',
+                desc: 'O original. Acetato italiano premium, frontal 150.7mm. O óculos que redefiniu o padrão.',
+                chips: ['Frontal 150.7mm', 'Acetato', 'UV400'],
+                img: '/img/oculos/fotoscalibre/fundo branco/20260505_184847-removebg-preview.png',
+                produto: 'MB-1572S',
+              },
+              {
+                id: 'viking',
+                nome: 'VIKING',
+                tag: 'Máscara · ZN3828',
+                frontal: '151mm',
+                desc: 'Estilo máscara oversized. Policarbonato, lentes espelhadas polarizadas UV400.',
+                chips: ['Frontal 151mm', 'Policarbonato', 'Polarizado'],
+                img: '/img/oculos/fotoscalibre/fundo branco/viking/1778079940314.png',
+                produto: 'Viking ZN3828',
+              },
+              {
+                id: 'presence',
+                nome: 'PRESENCE',
+                tag: 'Retângulo · 3 tamanhos',
+                frontal: '138–158mm',
+                desc: 'Disponível em S, M-L e XXL. O encaixe certo para cada rosto.',
+                chips: ['S / M-L / XXL', 'Retângulo', 'UV400'],
+                img: '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_8x6czt8x6czt8x6c.png',
+                produto: 'Presence',
+              },
+            ].map((model) => (
+              <div key={model.id} className="catalog-card">
+                <div className="catalog-card-img-wrapper">
+                  <img
+                    src={model.img}
+                    alt={`Óculos Calibre ${model.nome} — ${model.frontal} de frontal`}
+                    className="catalog-card-img"
+                  />
+                  <span className="catalog-frontal-badge">{model.frontal}</span>
+                </div>
+                <div className="catalog-card-body">
+                  <span className="catalog-card-tag">{model.tag}</span>
+                  <div className="catalog-card-name">{model.nome}</div>
+                  <p className="catalog-card-desc">{model.desc}</p>
+                  <div className="catalog-card-chips">
+                    {model.chips.map((c) => (
+                      <span key={c} className="catalog-chip">{c}</span>
+                    ))}
+                  </div>
+                  <button
+                    className="btn-catalog"
+                    onClick={() => handleReserveForProduct(model.produto)}
+                  >
+                    Entrar na lista de espera
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* ── FAQ ── */}
         <section className="faq-section">
           <span className="section-tag">Dúvidas frequentes</span>
@@ -1142,6 +1346,7 @@ export function LandingClient() {
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           onSuccess={handleSuccess}
+          produto={selectedProduto}
         />
 
       </div>

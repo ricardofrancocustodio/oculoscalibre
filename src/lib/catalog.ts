@@ -19,6 +19,8 @@ export interface ProductCatalogItem {
   };
   /** URL da imagem do produto para feeds */
   imagemUrl?: string;
+  /** Variantes de tamanho (ex: Presence S/M-L/XXL) */
+  variantes?: Array<{ tamanho: string; frontal: string; haste: string; lente: string }>;
 }
 
 export const productCatalog: ProductCatalogItem[] = [
@@ -49,6 +51,70 @@ export const productCatalog: ProductCatalogItem[] = [
       'proteção UV400 para uso diario',
     ],
     url: '/',
+  },
+  {
+    id: 'viking',
+    nome: 'Viking ZN3828',
+    medidaReferencia: 'Frontal 151mm',
+    categoria: 'Oculos de sol estilo mascara',
+    descricao: 'Oculos estilo mascara oversized em policarbonato de alta resistencia. Lentes polarizadas UV400 com revestimento espelhado e anti-reflexo.',
+    medidas: [
+      { label: 'Frontal total', value: '151mm' },
+      { label: 'Largura da lente', value: '60mm' },
+      { label: 'Ponte', value: '14mm' },
+      { label: 'Comprimento da haste', value: '142mm' },
+      { label: 'Peso', value: '43g' },
+    ],
+    problemasResolvidos: [
+      'armacao comum aperta nas temporas',
+      'falta de estilo mascara para rostos largos',
+      'dificuldade de encontrar oculos oversized masculinos',
+    ],
+    beneficios: [
+      'protecao UV400 completa',
+      'lentes polarizadas com anti-reflexo e espelho',
+      'armacao em policarbonato de alta resistencia',
+      'encaixe proporcional para frontais acima de 150mm',
+    ],
+    url: '/#viking',
+    stock: 'PreOrder',
+    imagemUrl: '/img/oculos/fotoscalibre/fundo branco/viking/1778079940314.png',
+  },
+  {
+    id: 'presence',
+    nome: 'Presence',
+    medidaReferencia: 'Frontal 138–158mm (S / M-L / XXL)',
+    categoria: 'Oculos de sol retangular',
+    descricao: 'Oculos estilo retangulo disponivel em 3 tamanhos: S (138mm), M-L (148mm) e XXL (158mm). O encaixe certo para cada rosto.',
+    medidas: [
+      { label: 'Frontal (S)',   value: '138mm' },
+      { label: 'Frontal (M-L)', value: '148mm' },
+      { label: 'Frontal (XXL)', value: '158mm' },
+      { label: 'Haste (S)',    value: '135mm' },
+      { label: 'Haste (M-L)', value: '136mm' },
+      { label: 'Haste (XXL)', value: '150mm' },
+      { label: 'Lente (S)',   value: '60×42.5mm' },
+      { label: 'Lente (M-L)', value: '64×44mm' },
+      { label: 'Lente (XXL)', value: '69×47mm' },
+    ],
+    problemasResolvidos: [
+      'armacao unica nao serve para diferentes tamanhos de rosto',
+      'falta de oculos retangular para rostos grandes',
+    ],
+    beneficios: [
+      '3 tamanhos para encaixe preciso',
+      'estilo retangulo classico e versatil',
+      'protecao UV400',
+      'compativel com frontais entre 138mm e 158mm',
+    ],
+    url: '/#presence',
+    stock: 'PreOrder',
+    imagemUrl: '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_8x6czt8x6czt8x6c.png',
+    variantes: [
+      { tamanho: 'S',   frontal: '138mm', haste: '135mm', lente: '60×42.5mm' },
+      { tamanho: 'M-L', frontal: '148mm', haste: '136mm', lente: '64×44mm'   },
+      { tamanho: 'XXL', frontal: '158mm', haste: '150mm', lente: '69×47mm'   },
+    ],
   },
 ];
 
