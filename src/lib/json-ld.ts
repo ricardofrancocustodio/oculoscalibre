@@ -46,6 +46,13 @@ export function websiteSchema() {
 }
 
 export function productSchema(product: ProductCatalogItem, options: { price?: string; priceCurrency?: string; availability?: string } = {}) {
+  const price = options.price ?? product.price;
+  const availability = options.availability ?? (
+    product.stock === 'InStock' ? 'https://schema.org/InStock'
+    : product.stock === 'OutOfStock' ? 'https://schema.org/OutOfStock'
+    : 'https://schema.org/PreOrder'
+  );
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -59,12 +66,19 @@ export function productSchema(product: ProductCatalogItem, options: { price?: st
       value: medida.value,
     })),
     url: absoluteUrl(product.url),
-    offers: options.price
+    ...(product.aggregateRating ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: product.aggregateRating.ratingValue,
+        reviewCount: product.aggregateRating.reviewCount,
+      },
+    } : {}),
+    offers: price
       ? {
           '@type': 'Offer',
-          price: options.price,
+          price,
           priceCurrency: options.priceCurrency ?? 'BRL',
-          availability: options.availability ?? 'https://schema.org/PreOrder',
+          availability,
           url: absoluteUrl(product.url),
           seller: { '@id': `${absoluteUrl('/')}#organization` },
         }

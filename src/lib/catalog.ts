@@ -8,6 +8,17 @@ export interface ProductCatalogItem {
   problemasResolvidos: string[];
   beneficios: string[];
   url: string;
+  /** Ex: "349.90" — preencher quando produto estiver à venda */
+  price?: string;
+  /** Status de estoque */
+  stock?: 'InStock' | 'PreOrder' | 'OutOfStock';
+  /** Preencher quando houver reviews reais */
+  aggregateRating?: {
+    ratingValue: number;
+    reviewCount: number;
+  };
+  /** URL da imagem do produto para feeds */
+  imagemUrl?: string;
 }
 
 export const productCatalog: ProductCatalogItem[] = [

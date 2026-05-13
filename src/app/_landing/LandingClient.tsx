@@ -1130,6 +1130,10 @@ export function LandingClient() {
             <a href="mailto:contato@oculoscalibre.com.br">
               contato@oculoscalibre.com.br
             </a>
+            &nbsp;·&nbsp;
+            <a href="/guia-de-medidas">
+              Guia de medidas
+            </a>
           </p>
         </footer>
 
