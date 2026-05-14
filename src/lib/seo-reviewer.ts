@@ -18,6 +18,15 @@ export interface SeoMetrics {
   imagesMissingAlt: number;
   internalLinks: number;
   externalLinks: number;
+  faqCount: number;
+  htmlTableCount: number;
+  emDashCount: number;
+  measurementsCount: number;
+  measurementsDensity: number;
+  bannedFlagWords: string[];
+  firstSentenceHasNumber: boolean;
+  bannedOpeningDetected: string | null;
+  deadTriadDetected: boolean;
 }
 
 export interface SeoReviewResult {
@@ -46,6 +55,8 @@ const KEYWORD_DENSITY_MIN = 0.5;
 const KEYWORD_DENSITY_MAX = 2.0;
 const MIN_WORD_COUNT = 300;
 const MIN_INTERNAL_LINKS_SAME_SILO = 2;
+const MIN_FAQ_QUESTIONS = 4;
+const MIN_MEASUREMENTS_PER_200_WORDS = 1;
 
 function normalize(value: string): string {
   return value
@@ -139,6 +150,116 @@ function isInternalHref(href: string): boolean {
   return false;
 }
 
+function countFaqQuestions(markdown: string): number {
+  const faqHeadingRegex = /^##\s+perguntas\s+frequentes\b.*$/im;
+  const match = markdown.match(faqHeadingRegex);
+  if (!match || match.index === undefined) return 0;
+
+  const tail = markdown.slice(match.index + match[0].length);
+  const nextH2Index = tail.search(/^##\s+\S/m);
+  const faqBlock = nextH2Index === -1 ? tail : tail.slice(0, nextH2Index);
+
+  const h3Questions = faqBlock.match(/^###\s+.+\?/gm)?.length ?? 0;
+  if (h3Questions > 0) return h3Questions;
+
+  const boldQuestions = faqBlock.match(/^\*\*[^*\n]+\?\*\*/gm)?.length ?? 0;
+  return boldQuestions;
+}
+
+function countHtmlTables(markdown: string): number {
+  const stripped = markdown.replace(/```[\s\S]*?```/g, ' ');
+  return stripped.match(/<table[\s>]/gi)?.length ?? 0;
+}
+
+function countEmDashes(markdown: string): number {
+  const stripped = markdown.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, ' ');
+  return stripped.match(/—/g)?.length ?? 0;
+}
+
+const BANNED_FLAG_WORDS: Array<{ token: string; matcher: RegExp }> = [
+  { token: 'crucial', matcher: /\bcruciais?\b/giu },
+  { token: 'fundamental', matcher: /\bfundamenta(?:l|is)\b/giu },
+  { token: 'vale ressaltar', matcher: /\bvale\s+ressaltar\b/giu },
+  { token: 'em suma', matcher: /\bem\s+suma\b/giu },
+  { token: 'no mundo atual', matcher: /\bno\s+mundo\s+atual\b/giu },
+  { token: 'nos dias de hoje', matcher: /\bnos\s+dias\s+de\s+hoje\b/giu },
+  { token: 'robusto', matcher: /\brobust[oa]s?\b/giu },
+  { token: 'versátil', matcher: /\bvers[áa]te(?:il|is)\b/giu },
+  { token: 'navegar pelo mar', matcher: /\bnavegar\s+(?:por|pelo|nesse|nesse?\s+mar)\b/giu },
+  { token: 'dominar', matcher: /\bdomina(?:r|ndo|m)\b/giu },
+  { token: 'desvendar', matcher: /\bdesvenda(?:r|ndo|m)\b/giu },
+  { token: 'desmistificar', matcher: /\bdesmistifica(?:r|ndo|m)\b/giu },
+  { token: 'jornada', matcher: /\bjornadas?\b/giu },
+  { token: 'empoderar', matcher: /\bempodera(?:r|ndo|m)\b/giu },
+  { token: 'rica experiência', matcher: /\brica\s+experi[êe]ncia\b/giu },
+  { token: 'ampla variedade', matcher: /\bampla\s+variedade\b/giu },
+  { token: 'verdadeiro divisor', matcher: /\bverdadeiro\s+divisor\b/giu },
+  { token: 'experiência única', matcher: /\bexperi[êe]ncia\s+[úu]nica\b/giu },
+  { token: 'atender suas necessidades', matcher: /\batender\s+suas\s+necessidades\b/giu },
+  { token: 'garantir a melhor', matcher: /\bgarantir\s+a\s+melhor\b/giu },
+  { token: 'elevado padrão', matcher: /\belevado\s+padr[ãa]o\b/giu },
+];
+
+const BANNED_OPENINGS: Array<{ label: string; matcher: RegExp }> = [
+  { label: 'Você já parou pra pensar', matcher: /^voc[êe]\s+j[áa]\s+parou\s+(?:pra|para)\s+pensar/i },
+  { label: 'Imagine a situação', matcher: /^imagine\s+(?:a\s+situa[çc][ãa]o|que)/i },
+  { label: 'Quando se trata de', matcher: /^quando\s+se\s+trata\s+de/i },
+  { label: 'No universo de', matcher: /^no\s+universo\s+(?:de|do|dos|da|das)/i },
+  { label: 'Na hora de escolher', matcher: /^na\s+hora\s+de\s+(?:escolher|comprar)/i },
+  { label: 'Procurando o óculos ideal', matcher: /^procurando\s+/i },
+  { label: 'Você sabia que', matcher: /^voc[êe]\s+sabia\s+que/i },
+  { label: 'Se você está aqui', matcher: /^se\s+voc[êe]\s+est[áa]\s+aqui/i },
+];
+
+function getFirstBodySentence(markdown: string): string {
+  const firstParagraph = getFirstParagraph(markdown);
+  if (!firstParagraph) return '';
+  const sentenceMatch = firstParagraph.match(/^[^.!?]+[.!?]/);
+  return (sentenceMatch ? sentenceMatch[0] : firstParagraph).trim();
+}
+
+function detectBannedFlagWords(markdown: string): string[] {
+  const stripped = markdown.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, ' ');
+  const detected = new Set<string>();
+  for (const { token, matcher } of BANNED_FLAG_WORDS) {
+    if (matcher.test(stripped)) detected.add(token);
+  }
+  return [...detected];
+}
+
+function detectBannedOpening(firstSentence: string): string | null {
+  const normalized = firstSentence.replace(/^[\s*_>"'-]+/, '').trim();
+  for (const { label, matcher } of BANNED_OPENINGS) {
+    if (matcher.test(normalized)) return label;
+  }
+  return null;
+}
+
+function firstSentenceContainsNumber(firstSentence: string): boolean {
+  return /\d/.test(firstSentence);
+}
+
+function detectDeadTriad(markdown: string): boolean {
+  const stripped = markdown.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, ' ');
+  return /\bqualidade,\s*conforto\s*e\s*estilo\b/i.test(stripped);
+}
+
+function countMeasurements(markdown: string): number {
+  const stripped = markdown.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, ' ');
+  const patterns = [
+    /\b\d+(?:[.,]\d+)?\s?(?:mm|cm|m)\b/gi,
+    /\b\d+(?:[.,]\d+)?\s?(?:g|kg|gramas?|quilos?)\b/gi,
+    /R\$\s?\d+(?:[.,]\d+)?/g,
+    /\b\d+\s?(?:dia|dias|hora|horas|minuto|minutos|semana|semanas|mes|meses|mês)\b/gi,
+  ];
+
+  let total = 0;
+  for (const pattern of patterns) {
+    total += stripped.match(pattern)?.length ?? 0;
+  }
+  return total;
+}
+
 function isSameSiloHref(href: string, siloPath: string | null | undefined): boolean {
   if (!siloPath) return isInternalHref(href);
   if (!isInternalHref(href)) return false;
@@ -171,6 +292,17 @@ export function reviewPostSeo(input: SeoReviewInput): SeoReviewResult {
   const internalLinks = links.filter((link) => isInternalHref(link.href)).length;
   const externalLinks = links.length - internalLinks;
   const sameSiloInternalLinks = links.filter((link) => isSameSiloHref(link.href, input.siloPath ?? null)).length;
+
+  const faqCount = countFaqQuestions(conteudoMd);
+  const htmlTableCount = countHtmlTables(conteudoMd);
+  const emDashCount = countEmDashes(conteudoMd);
+  const measurementsCount = countMeasurements(conteudoMd);
+  const measurementsDensity = wordCount > 0 ? (measurementsCount / wordCount) * 200 : 0;
+  const firstSentence = getFirstBodySentence(conteudoMd);
+  const bannedFlagWords = detectBannedFlagWords(conteudoMd);
+  const bannedOpeningDetected = detectBannedOpening(firstSentence);
+  const firstSentenceHasNumber = firstSentence ? firstSentenceContainsNumber(firstSentence) : false;
+  const deadTriadDetected = detectDeadTriad(conteudoMd);
 
   if (!keyword) {
     issues.push({
@@ -286,6 +418,72 @@ export function reviewPostSeo(input: SeoReviewInput): SeoReviewResult {
     });
   }
 
+  if (faqCount < MIN_FAQ_QUESTIONS) {
+    issues.push({
+      level: 'warning',
+      rule: 'aeo.faq.section.missing',
+      message: faqCount === 0
+        ? 'Seção "Perguntas frequentes" ausente. Necessária para gerar FAQPage JSON-LD e ser citável por LLMs (ChatGPT, Perplexity, AI Overview).'
+        : `Seção "Perguntas frequentes" tem apenas ${faqCount} pergunta${faqCount === 1 ? '' : 's'}. Mínimo recomendado: ${MIN_FAQ_QUESTIONS}.`,
+    });
+  }
+
+  if (htmlTableCount === 0) {
+    issues.push({
+      level: 'warning',
+      rule: 'aeo.html.table.missing',
+      message: 'Sem tabela HTML semântica (<table>). Tabelas HTML são o formato mais extraível por LLMs — inclua pelo menos uma comparando medidas, modelos, materiais ou faixas de cabeça.',
+    });
+  }
+
+  if (emDashCount > 0) {
+    issues.push({
+      level: 'error',
+      rule: 'aeo.em.dash.forbidden',
+      message: `Detectado ${emDashCount} em-dash (—) no texto. Preferência do dono da marca: zero em-dashes. Substituir por vírgula, parênteses ou reestruturar a frase.`,
+    });
+  }
+
+  if (wordCount >= MIN_WORD_COUNT && measurementsDensity < MIN_MEASUREMENTS_PER_200_WORDS) {
+    issues.push({
+      level: 'warning',
+      rule: 'aeo.measurements.density.min',
+      message: `Densidade factual baixa: ${measurementsCount} medida${measurementsCount === 1 ? '' : 's'} (mm/cm/g/R$/dias) em ${wordCount} palavras (${measurementsDensity.toFixed(2)} por 200 palavras). Mínimo recomendado: ${MIN_MEASUREMENTS_PER_200_WORDS} a cada 200 palavras.`,
+    });
+  }
+
+  if (bannedFlagWords.length > 0) {
+    issues.push({
+      level: 'warning',
+      rule: 'humanization.banned.flag.words',
+      message: `Palavra${bannedFlagWords.length === 1 ? '' : 's'}-bandeira de IA detectada${bannedFlagWords.length === 1 ? '' : 's'}: ${bannedFlagWords.map((w) => `"${w}"`).join(', ')}. Substituir por equivalente concreto (com número ou descrição factual).`,
+    });
+  }
+
+  if (bannedOpeningDetected) {
+    issues.push({
+      level: 'warning',
+      rule: 'humanization.banned.opening',
+      message: `Abertura genérica detectada: "${bannedOpeningDetected}". Reescrever a primeira frase como afirmação factual contendo um número (medida, faixa, percentual).`,
+    });
+  }
+
+  if (firstSentence && !firstSentenceHasNumber) {
+    issues.push({
+      level: 'warning',
+      rule: 'humanization.first.sentence.no.number',
+      message: 'Primeira frase do artigo não contém número. Regra: abertura precisa estabelecer autoridade factual com uma medida (mm/cm), faixa, percentual ou valor.',
+    });
+  }
+
+  if (deadTriadDetected) {
+    issues.push({
+      level: 'warning',
+      rule: 'humanization.dead.triad',
+      message: 'Detectada tríade morta "qualidade, conforto e estilo". Substituir por três medidas concretas do produto (148 mm de frontal, 150 mm de haste, 96 g) ou três critérios objetivos com número.',
+    });
+  }
+
   const errorCount = issues.filter((issue) => issue.level === 'error').length;
   const warningCount = issues.filter((issue) => issue.level === 'warning').length;
   const score = Math.max(0, Math.min(100, 100 - errorCount * 20 - warningCount * 5));
@@ -305,11 +503,20 @@ export function reviewPostSeo(input: SeoReviewInput): SeoReviewResult {
       imagesMissingAlt,
       internalLinks,
       externalLinks,
+      faqCount,
+      htmlTableCount,
+      emDashCount,
+      measurementsCount,
+      measurementsDensity,
+      bannedFlagWords,
+      firstSentenceHasNumber,
+      bannedOpeningDetected,
+      deadTriadDetected,
     },
   };
 }
 
-const FIXABLE_RULES = new Set(['meta.title.length', 'meta.description.long', 'h1.contains.keyword', 'h1.unique']);
+const FIXABLE_RULES = new Set(['meta.title.length', 'meta.description.long', 'h1.contains.keyword', 'h1.unique', 'aeo.em.dash.forbidden']);
 
 function applyAutoCorrections(input: SeoReviewInput, issues: SeoIssue[]): { titulo: string; resumo: string; conteudoMd: string; corrections: string[] } {
   let titulo = input.titulo;
@@ -345,6 +552,18 @@ function applyAutoCorrections(input: SeoReviewInput, issues: SeoIssue[]): { titu
     if (issue.rule === 'h1.unique' && !conteudoMd.match(/^#\s+\S/m) && input.keywordPrincipal) {
       conteudoMd = `# ${input.keywordPrincipal.trim()}\n\n${conteudoMd}`;
       corrections.push('H1 adicionado ao início do conteúdo.');
+    }
+
+    if (issue.rule === 'aeo.em.dash.forbidden' && conteudoMd.includes('—')) {
+      const before = (conteudoMd.match(/—/g) || []).length;
+      conteudoMd = conteudoMd
+        .replace(/\s+—\s+/g, ', ')
+        .replace(/—/g, ',');
+      const after = (conteudoMd.match(/—/g) || []).length;
+      const removed = before - after;
+      if (removed > 0) {
+        corrections.push(`${removed} em-dash (—) removido${removed === 1 ? '' : 's'} do texto.`);
+      }
     }
   }
 

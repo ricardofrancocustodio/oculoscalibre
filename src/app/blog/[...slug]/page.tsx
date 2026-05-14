@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { filterPostsForTopic, getRelatedPosts, toBlogPostView } from '@/lib/blog';
+import { extractFaqsFromMarkdown, filterPostsForTopic, getRelatedPosts, toBlogPostView } from '@/lib/blog';
 import { getPostBySlug, getPublishedPosts, type Post } from '@/lib/db';
 import { MarkdownRenderer } from '@/lib/markdown';
 import { formatDateBR, humanizeSlugSegment } from '@/lib/slug';
@@ -11,6 +11,7 @@ import {
   articleSchema,
   breadcrumbListSchema,
   collectionPageSchema,
+  faqPageSchema,
   jsonLdScript,
 } from '@/lib/json-ld';
 import {
@@ -238,16 +239,14 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
     { name: view.titulo, href: view.href },
   ];
 
+  const faqs = extractFaqsFromMarkdown(post.conteudo_md);
   const articlePayload = [
     articleSchema(post),
     breadcrumbListSchema(breadcrumbCrumbs),
+    ...(faqs.length >= 2 ? [faqPageSchema(faqs)] : []),
   ];
 
-  const freshnessDate = post.revised_at ?? post.updated_at;
-  const wasUpdated =
-    Boolean(freshnessDate) &&
-    Boolean(post.published_at) &&
-    new Date(freshnessDate).getTime() - new Date(post.published_at as string).getTime() > 60_000;
+  const freshnessDate = post.revised_at ?? post.updated_at ?? post.published_at;
 
   return (
     <BlogPageChrome
@@ -275,7 +274,7 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
                 <span>{view.publishedLabel ?? 'Sem data'}</span>
                 <span>{view.readingTime} min de leitura</span>
                 <span>{view.autor}</span>
-                {wasUpdated ? <span>Atualizado em {formatDateBR(freshnessDate)}</span> : null}
+                {freshnessDate ? <span>Atualizado em {formatDateBR(freshnessDate)}</span> : null}
               </div>
               {view.capa_url ? (
                 <div style={coverWrapperStyle}>

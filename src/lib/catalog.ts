@@ -55,11 +55,10 @@ export const productCatalog: ProductCatalogItem[] = [
     url: '/produto/mb-1572s',
     price: '449',
     stock: 'PreOrder',
-    imagemUrl: '/img/oculos/fotoscalibre/fundo branco/20260505_184847-removebg-preview.png',
+    imagemUrl: '/img/oculos/fotoscalibre/20260505_184758.jpg',
     imagens: [
-      '/img/oculos/fotoscalibre/fundo branco/20260505_184847-removebg-preview.png',
-      '/img/oculos/fotoscalibre/fundo branco/20260510_130537-removebg-preview.png',
       '/img/oculos/fotoscalibre/20260505_184758.jpg',
+      '/img/oculos/fotoscalibre/fundo branco/20260510_130537-removebg-preview.png',
       '/img/oculos/fotoscalibre/20260505_184805.jpg',
       '/img/oculos/fotoscalibre/20260505_184813.jpg',
       '/img/oculos/fotoscalibre/20260510_130608.jpg',

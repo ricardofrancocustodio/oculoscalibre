@@ -135,6 +135,81 @@ export function getFlatPosts(posts: Post[]): BlogPostView[] {
     .filter((post) => !post.siloSlug);
 }
 
+export interface FaqEntry {
+  q: string;
+  a: string;
+}
+
+export function extractFaqsFromMarkdown(markdown: string): FaqEntry[] {
+  if (!markdown) return [];
+
+  const faqHeadingMatch = markdown.match(/^##\s+perguntas\s+frequentes\b.*$/im);
+  if (!faqHeadingMatch || faqHeadingMatch.index === undefined) return [];
+
+  const tail = markdown.slice(faqHeadingMatch.index + faqHeadingMatch[0].length);
+  const nextH2Index = tail.search(/^##\s+\S/m);
+  const faqBlock = nextH2Index === -1 ? tail : tail.slice(0, nextH2Index);
+
+  const faqs: FaqEntry[] = [];
+
+  const h3Regex = /^###\s+(.+?)\s*$/gm;
+  const h3Matches: Array<{ question: string; start: number; end: number }> = [];
+  let h3Match: RegExpExecArray | null;
+  while ((h3Match = h3Regex.exec(faqBlock)) !== null) {
+    h3Matches.push({
+      question: h3Match[1].trim(),
+      start: h3Match.index,
+      end: h3Match.index + h3Match[0].length,
+    });
+  }
+
+  if (h3Matches.length > 0) {
+    for (let i = 0; i < h3Matches.length; i++) {
+      const current = h3Matches[i];
+      const next = h3Matches[i + 1];
+      const answerRaw = faqBlock.slice(current.end, next ? next.start : faqBlock.length);
+      const answer = cleanAnswer(answerRaw);
+      if (current.question && answer) {
+        faqs.push({ q: current.question, a: answer });
+      }
+    }
+    return faqs;
+  }
+
+  const boldRegex = /^\*\*([^*\n]+\?)\*\*\s*$/gm;
+  const boldMatches: Array<{ question: string; start: number; end: number }> = [];
+  let boldMatch: RegExpExecArray | null;
+  while ((boldMatch = boldRegex.exec(faqBlock)) !== null) {
+    boldMatches.push({
+      question: boldMatch[1].trim(),
+      start: boldMatch.index,
+      end: boldMatch.index + boldMatch[0].length,
+    });
+  }
+
+  for (let i = 0; i < boldMatches.length; i++) {
+    const current = boldMatches[i];
+    const next = boldMatches[i + 1];
+    const answerRaw = faqBlock.slice(current.end, next ? next.start : faqBlock.length);
+    const answer = cleanAnswer(answerRaw);
+    if (current.question && answer) {
+      faqs.push({ q: current.question, a: answer });
+    }
+  }
+
+  return faqs;
+}
+
+function cleanAnswer(raw: string): string {
+  return raw
+    .replace(/\r/g, '')
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_`>]/g, '')
+    .trim();
+}
+
 export function getRelatedPosts(posts: Post[], currentSlug: string, max = 3): BlogPostView[] {
   const current = toBlogPostView(posts.find((post) => post.slug === currentSlug) ?? (() => {
     throw new Error('Post atual não encontrado para montar relacionados.');

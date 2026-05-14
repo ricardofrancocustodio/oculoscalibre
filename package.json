@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "set PORT=3001 && next start",
+    "dev": "cross-env __NEXT_PRIVATE_STANDALONE_CONFIG= __NEXT_PRIVATE_ORIGIN= next dev",
+    "build": "cross-env __NEXT_PRIVATE_STANDALONE_CONFIG= __NEXT_PRIVATE_ORIGIN= next build",
+    "start": "cross-env __NEXT_PRIVATE_STANDALONE_CONFIG= __NEXT_PRIVATE_ORIGIN= PORT=3001 next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -25,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",

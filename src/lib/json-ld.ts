@@ -90,6 +90,7 @@ export function faqPageSchema(faqs: Array<{ q: string; a: string }>) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    inLanguage: 'pt-BR',
     mainEntity: faqs.map((faq) => ({
       '@type': 'Question',
       name: faq.q,
@@ -131,6 +132,19 @@ function buildArticleAuthor(autorRaw: string) {
   return { '@type': 'Person', name: autor };
 }
 
+function countMarkdownWords(md: string): number {
+  if (!md) return 0;
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/!?\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/[#>*_~\-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+}
+
 export function articleSchema(post: Post) {
   const canonical = post.canonical_url?.trim() || `/blog/${post.slug}`;
   const url = absoluteUrl(canonical);
@@ -141,6 +155,7 @@ export function articleSchema(post: Post) {
     .map((value) => value?.toString().trim())
     .filter((value): value is string => Boolean(value));
   const keywords = Array.from(new Set(keywordSet));
+  const wordCount = countMarkdownWords(post.conteudo_md);
 
   return {
     '@context': 'https://schema.org',
@@ -155,6 +170,7 @@ export function articleSchema(post: Post) {
     datePublished: post.published_at ?? post.created_at,
     dateModified: post.revised_at ?? post.updated_at,
     keywords: keywords.length ? keywords.join(', ') : undefined,
+    wordCount: wordCount || undefined,
     inLanguage: 'pt-BR',
     isPartOf: { '@id': `${absoluteUrl('/')}#website` },
     mainEntityOfPage: {

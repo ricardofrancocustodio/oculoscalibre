@@ -1281,7 +1281,7 @@ export function LandingClient() {
                 frontal: '150.7mm',
                 desc: 'O original. Acetato italiano premium, frontal 150.7mm. O óculos que redefiniu o padrão.',
                 chips: ['Frontal 150.7mm', 'Acetato', 'UV400'],
-                img: '/img/oculos/fotoscalibre/fundo branco/20260505_184847-removebg-preview.png',
+                img: '/img/oculos/fotoscalibre/20260505_184758.jpg',
                 produto: 'MB-1572S',
               },
               {

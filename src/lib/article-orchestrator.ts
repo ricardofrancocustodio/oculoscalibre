@@ -129,13 +129,15 @@ export const editorialSkills: EditorialSkill[] = [
   {
     id: 'sitemap-updater',
     nome: 'Sitemap Updater',
-    objetivo: 'Garantir que paginas do blog, pilares, subtemas e artigos publicados aparecam no sitemap.',
-    entrada: ['posts publicados', 'paginas de silo', 'URL base do site'],
-    saida: ['sitemap atualizado', 'rotas indexaveis', 'prioridades por tipo de pagina'],
+    objetivo: 'Garantir que home, PDPs (produtos), guia de medidas, pilares de silo e artigos publicados aparecam no sitemap publico com prioridade, lastmod e image extension corretos. Revalida automaticamente a cada mutacao de post (create/update/delete/toggle-publish).',
+    entrada: ['posts publicados (DB)', 'catalogo de produtos (lib/catalog)', 'paginas estaticas (guia de medidas, blog index)', 'URL base do site'],
+    saida: ['sitemap.xml com Home (1.0), produtos (0.9) com images, guia de medidas (0.85), /blog (0.8), pilares de silo (0.72) e artigos (0.64)', 'lastmod real por entrada', 'revalidacao automatica do /sitemap.xml apos cada mutacao'],
     criterioAceite: [
-      'Home e landing devem ter prioridade maior que artigos.',
-      'Paginas-pilar devem aparecer antes dos artigos derivados.',
+      'Home, PDPs e guia de medidas devem ter prioridade maior que artigos.',
+      'Paginas-pilar de silo devem aparecer antes dos artigos derivados.',
       'Somente posts publicados entram no sitemap publico.',
+      'lastmod do /blog usa a data do post mais recente; lastmod de cada pilar de silo usa o post mais recente do silo.',
+      'PDPs incluem campo images do sitemap protocol quando o produto tem imagens cadastradas.',
     ],
   },
 ];

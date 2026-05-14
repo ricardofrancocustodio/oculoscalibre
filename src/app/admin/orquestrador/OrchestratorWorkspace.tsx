@@ -25,8 +25,12 @@ import {
   reviseArticleWithLlmAction,
   suggestSiloPathAction,
   suggestPostClusterAction,
+  generateClusterArticlesAction,
+  publishClusterArticlesAction,
+  reserveClusterSlugsAction,
   type PublishOrchestratedPostResult,
 } from './actions';
+import type { WriterBrief } from '@/lib/article-writer-llm';
 import type { PostCluster, ClusterPost } from './cluster-types';
 
 const ORCHESTRATOR_DRAFT_STORAGE_KEY = 'calibre.orchestratorDraft.v1';
@@ -49,6 +53,22 @@ function getNextNarrativeIndex(): number {
   } catch {
     return 0;
   }
+}
+
+interface QuickPhase {
+  id: 'keywords' | 'silo' | 'cluster' | 'reserve' | 'generate' | 'publish';
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'error';
+  detail?: string;
+}
+
+function extractFirstParagraph(md: string): string {
+  return md
+    .replace(/^#.*$/gm, '')
+    .trim()
+    .split(/\n\s*\n/)[0]
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 interface SeoIterationRecord {
@@ -140,6 +160,12 @@ export function OrchestratorWorkspace() {
   const [postCluster, setPostCluster] = useState<PostCluster | null>(null);
   const [clusterLoading, setClusterLoading] = useState(false);
   const [clusterLinksParaLlm, setClusterLinksParaLlm] = useState<{ titulo: string; url: string; keyword: string }[]>([]);
+
+  const [quickKeyword, setQuickKeyword] = useState('');
+  const [quickRunning, setQuickRunning] = useState(false);
+  const [quickPhases, setQuickPhases] = useState<QuickPhase[]>([]);
+  const [quickResults, setQuickResults] = useState<PublishOrchestratedPostResult[] | null>(null);
+  const [quickError, setQuickError] = useState('');
 
   const [keywordPrincipal, setKeywordPrincipal] = useState<KeywordCandidate>({
     termo: 'oculos de sol para rosto largo masculino',
@@ -533,6 +559,187 @@ export function OrchestratorWorkspace() {
     });
   }
 
+  async function runQuickClusterFlow(seedKeyword: string) {
+    if (quickRunning) return;
+    const seed = seedKeyword.trim();
+    if (!seed) {
+      setQuickError('Defina uma keyword seed antes de gerar o cluster.');
+      return;
+    }
+
+    setQuickRunning(true);
+    setQuickError('');
+    setQuickResults(null);
+
+    const initialPhases: QuickPhase[] = [
+      { id: 'keywords', label: 'Buscando keywords secundárias', status: 'pending' },
+      { id: 'silo', label: 'Detectando silo', status: 'pending' },
+      { id: 'cluster', label: 'Montando cluster (pilar + 5 suportes)', status: 'pending' },
+      { id: 'reserve', label: 'Reservando slugs únicos pro Link Wheel', status: 'pending' },
+      { id: 'generate', label: 'Gerando + revisando 6 artigos em paralelo', status: 'pending' },
+      { id: 'publish', label: 'Publicando os 6 posts', status: 'pending' },
+    ];
+    setQuickPhases(initialPhases);
+
+    function setPhase(id: QuickPhase['id'], patch: Partial<QuickPhase>) {
+      setQuickPhases((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    }
+
+    try {
+      setPhase('keywords', { status: 'running' });
+      const kwResponse = await fetch(`/api/admin/keyword-planner?q=${encodeURIComponent(seed)}`, { cache: 'no-store' });
+      const kwData = (await kwResponse.json()) as KeywordPlannerResponse | { error?: string };
+      if (!kwResponse.ok) {
+        throw new Error('error' in kwData && kwData.error ? kwData.error : 'Falha ao buscar keywords.');
+      }
+      const kwResult = kwData as KeywordPlannerResponse;
+      const ranked = (kwResult.suggestions ?? [])
+        .filter((s) => normalizeTerm(s.termo) !== normalizeTerm(seed))
+        .sort((a, b) => opportunityScore(b) - opportunityScore(a));
+      const obrigatorias = ranked.slice(0, 4).map(suggestionToKeyword);
+      const contextuais = ranked.slice(4, 14).map((s) => s.termo);
+      setPhase('keywords', { status: 'done', detail: `${ranked.length} encontradas · ${obrigatorias.length} obrigatórias · ${contextuais.length} contexto` });
+
+      setPhase('silo', { status: 'running' });
+      const detectedSilo = await suggestSiloPathAction({ keyword: seed });
+      setPhase('silo', { status: 'done', detail: detectedSilo });
+
+      setPhase('cluster', { status: 'running' });
+      const cluster = await suggestPostClusterAction(seed, detectedSilo, [...obrigatorias.map((k) => k.termo), ...contextuais]);
+      const allClusterPosts = [cluster.pilar, ...cluster.suportes];
+      setPhase('cluster', { status: 'done', detail: `Tópico: ${cluster.topico} · ${allClusterPosts.length} posts` });
+
+      setPhase('reserve', { status: 'running' });
+      const reservation = await reserveClusterSlugsAction({
+        items: allClusterPosts.map((p) => ({ siloPath: p.siloPath, keyword: p.keyword })),
+      });
+      const reservedByKeyword = new Map(reservation.reservations.map((r) => [r.keyword, r]));
+      const collisionCount = reservation.reservations.filter((r) => r.collisionDetected).length;
+      setPhase('reserve', {
+        status: 'done',
+        detail: collisionCount > 0
+          ? `${reservation.reservations.length} slugs reservados (${collisionCount} colisões resolvidas com sufixo)`
+          : `${reservation.reservations.length} slugs reservados sem colisões`,
+      });
+
+      const urlByKeyword = new Map(
+        allClusterPosts.map((p) => {
+          const reserved = reservedByKeyword.get(p.keyword);
+          return [p.keyword, reserved ? reserved.finalUrl : `/blog/${p.siloPath}/${slugify(p.keyword)}`];
+        }),
+      );
+
+      const briefs = allClusterPosts.map((post) => {
+        const principal: KeywordCandidate = {
+          termo: post.keyword,
+          intencao: post.intencao || 'a classificar',
+          volumeMensal: '',
+          fonteVolume: 'cluster semântico',
+          dificuldade: '',
+        };
+        const postPlan = buildEditorialOrchestration({
+          tema: BRAND_CONTEXT.tema,
+          siloPath: post.siloPath,
+          produtoId,
+          persona: BRAND_CONTEXT.persona,
+          problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
+          jornadaNarrativa,
+          keywordPrincipal: principal,
+          keywordsSecundarias: obrigatorias,
+        });
+
+        const links = post.linkaPara
+          .map((targetKeyword) => allClusterPosts.find((p) => p.keyword === targetKeyword))
+          .filter((target): target is ClusterPost => Boolean(target) && target!.keyword !== post.keyword)
+          .map((target) => ({
+            titulo: target.titulo,
+            url: urlByKeyword.get(target.keyword) ?? `/blog/${target.siloPath}/${slugify(target.keyword)}`,
+            keyword: target.keyword,
+          }));
+
+        const writerBrief: WriterBrief = {
+          tema: BRAND_CONTEXT.tema,
+          keywordPrincipal: post.keyword,
+          keywordsSecundarias: obrigatorias.map((k) => k.termo),
+          keywordsContextuais: contextuais,
+          licoesRevisor,
+          persona: BRAND_CONTEXT.persona,
+          problemaPrincipal: BRAND_CONTEXT.problemaPrincipal,
+          provaConcreta: postPlan.integracaoConteudo.provaConcreta,
+          beneficioCentral: postPlan.integracaoConteudo.beneficioCentral,
+          objecaoPrincipal: postPlan.integracaoConteudo.objecaoPrincipal,
+          ctaSugerido: postPlan.integracaoConteudo.ctaSugerido,
+          tituloSugerido: post.titulo,
+          h2Sugeridos: postPlan.integracaoConteudo.h2Sugeridos,
+          produto: postPlan.produto,
+          perfilEditorial: {
+            nome: writerProfile.nome,
+            tamanho: writerProfile.tamanho,
+            tecnica: writerProfile.tecnica,
+            ritmo: writerProfile.ritmo,
+          },
+          siloPath: post.siloPath,
+          linksInternosObrigatorios: links.length > 0 ? links : undefined,
+        };
+
+        return {
+          brief: writerBrief,
+          tipo: post.tipo,
+          keyword: post.keyword,
+          resumoBase: post.resumo,
+        };
+      });
+
+      setPhase('generate', { status: 'running', detail: '6 artigos em paralelo (geração + 3 iterações de revisão por artigo)' });
+      const generationResult = await generateClusterArticlesAction({ briefs });
+      const passCount = generationResult.articles.filter((a) => a.reviewStatus === 'pass').length;
+      const warnCount = generationResult.articles.filter((a) => a.reviewStatus === 'warn').length;
+      const failCount = generationResult.articles.filter((a) => a.reviewStatus === 'fail').length;
+      setPhase('generate', { status: 'done', detail: `${passCount} pass · ${warnCount} warn · ${failCount} fail` });
+
+      setPhase('publish', { status: 'running' });
+      const orderedReservations = generationResult.articles.map((art) => {
+        const reserved = reservedByKeyword.get(art.keyword);
+        if (!reserved) throw new Error(`Slug nao reservado para keyword "${art.keyword}" — abortando publicacao.`);
+        return reserved;
+      });
+      const publishPayload = generationResult.articles.map((art, idx) => {
+        const reserved = orderedReservations[idx];
+        const firstParagraph = extractFirstParagraph(art.conteudoMarkdown);
+        const resumo = (firstParagraph.length > 40 ? firstParagraph : art.titulo).slice(0, 180);
+        const articleSlug = reserved.finalSlug.includes('/')
+          ? reserved.finalSlug.split('/').pop() ?? slugify(art.keyword)
+          : reserved.finalSlug;
+        return {
+          titulo: art.titulo,
+          resumo,
+          conteudoMarkdown: art.conteudoMarkdown,
+          tags: [art.keyword.toLowerCase()],
+          topicPath: art.siloPath,
+          slug: articleSlug,
+          metaTitle: art.titulo.slice(0, 60),
+          metaDescription: resumo.slice(0, 158),
+          keywordPrincipal: art.keyword,
+          keywordsSecundarias: obrigatorias.map((k) => k.termo),
+          coverAlt: `${art.keyword} ilustrado pelo ${productCatalog.find((p) => p.id === produtoId)?.nome ?? 'Calibre'}`,
+        };
+      });
+
+      const publishResult = await publishClusterArticlesAction({
+        posts: publishPayload,
+        expectedSlugs: orderedReservations.map((r) => r.finalSlug),
+      });
+      setPhase('publish', { status: 'done', detail: `${publishResult.posts.length} URLs publicadas` });
+      setQuickResults(publishResult.posts);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido no fluxo de cluster.';
+      setQuickError(message);
+      setQuickPhases((prev) => prev.map((p) => (p.status === 'running' ? { ...p, status: 'error', detail: message } : p)));
+    } finally {
+      setQuickRunning(false);
+    }
+  }
+
   function publishCurrentArticle() {
     setPublisherError('');
     setPublisherResult(null);
@@ -577,6 +784,107 @@ export function OrchestratorWorkspace() {
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
+      <section style={{ ...panelStyle, border: '1px solid rgba(200,241,53,0.25)', background: 'linear-gradient(135deg, #111 0%, rgba(200,241,53,0.04) 100%)' }}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <p style={eyebrowStyle}>Modo rápido</p>
+            <h1 style={titleStyle}>Criar cluster completo de 6 posts</h1>
+            <p style={{ ...hintStyle, marginTop: '10px', maxWidth: '720px' }}>
+              Digite uma keyword seed. O sistema busca caudas longas, monta um cluster (1 pilar + 5 suportes interligados em Link Wheel), gera os 6 artigos com OpenAI, roda 3 iterações de revisão SEO/AEO em cada um, e publica tudo de uma vez com os links cruzados já apontando para as URLs finais.
+            </p>
+          </div>
+        </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void runQuickClusterFlow(quickKeyword);
+          }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', marginBottom: '16px' }}
+        >
+          <input
+            placeholder="Keyword seed (ex: óculos para cabeça 60cm)"
+            value={quickKeyword}
+            onChange={(event) => setQuickKeyword(event.target.value)}
+            disabled={quickRunning}
+            style={{ ...inputStyle, borderColor: '#C8F135', fontSize: '15px' }}
+          />
+          <button
+            type="submit"
+            disabled={quickRunning || !quickKeyword.trim()}
+            style={{ ...searchButtonStyle, padding: '14px 22px', fontSize: '14px', opacity: !quickKeyword.trim() && !quickRunning ? 0.45 : 1 }}
+          >
+            {quickRunning ? '⏳  Gerando cluster...' : '✦  Criar 6 artigos'}
+          </button>
+        </form>
+
+        {quickPhases.length > 0 && (
+          <div style={{ display: 'grid', gap: '8px', marginBottom: quickResults || quickError ? '16px' : 0 }}>
+            {quickPhases.map((phase) => (
+              <div
+                key={phase.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 14px',
+                  background: phase.status === 'running' ? 'rgba(200,241,53,0.08)' : '#0A0A0A',
+                  border: `1px solid ${phase.status === 'error' ? 'rgba(255,107,107,0.3)' : phase.status === 'done' ? 'rgba(200,241,53,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  color: phase.status === 'pending' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.85)',
+                }}
+              >
+                <span style={{ fontSize: '14px', minWidth: '20px' }}>
+                  {phase.status === 'pending' && '○'}
+                  {phase.status === 'running' && '⏳'}
+                  {phase.status === 'done' && <span style={{ color: '#C8F135' }}>✓</span>}
+                  {phase.status === 'error' && <span style={{ color: '#FF6B6B' }}>✗</span>}
+                </span>
+                <span style={{ flex: 1 }}>{phase.label}</span>
+                {phase.detail && (
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>
+                    {phase.detail}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {quickError && (
+          <div style={publisherWarningStyle}>{quickError}</div>
+        )}
+
+        {quickResults && quickResults.length > 0 && (
+          <div style={{ background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.3)', borderRadius: '12px', padding: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#C8F135', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              ✓ {quickResults.length} posts publicados
+            </div>
+            <div style={{ display: 'grid', gap: '6px' }}>
+              {quickResults.map((result, idx) => (
+                <div key={result.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '13px' }}>
+                  <span style={{ color: idx === 0 ? '#C8F135' : 'rgba(255,255,255,0.4)', fontWeight: 800, minWidth: '70px' }}>
+                    {idx === 0 ? '★ PILAR' : `◈ #${idx}`}
+                  </span>
+                  <a href={result.publicUrl} target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'none', flex: 1 }}>
+                    {result.publicUrl}
+                  </a>
+                  <a href={result.adminUrl} style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', textDecoration: 'none' }}>
+                    editar →
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <details style={{ background: '#111', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px' }}>
+        <summary style={{ padding: '16px 24px', cursor: 'pointer', fontSize: '13px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: 'rgba(200,241,53,0.5)' }}>▸</span> Modo manual — passo a passo (avançado)
+        </summary>
+        <div style={{ padding: '0 24px 24px', display: 'grid', gap: '24px' }}>
       <section style={panelStyle}>
         <div style={sectionHeaderStyle}>
           <div>
@@ -1096,6 +1404,8 @@ export function OrchestratorWorkspace() {
           </div>
         )}
       </section>
+        </div>
+      </details>
     </div>
   );
 }
