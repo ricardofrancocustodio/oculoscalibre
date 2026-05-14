@@ -1,0 +1,39 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "inLanguage": "pt-BR",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "PERGUNTA_1_AQUI",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "RESPOSTA_1_AQUI_ENTRE_40_E_80_PALAVRAS_COM_PELO_MENOS_UMA_MEDIDA_NUMERICA"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "PERGUNTA_2_AQUI",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "RESPOSTA_2_AQUI"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "PERGUNTA_3_AQUI",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "RESPOSTA_3_AQUI"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "PERGUNTA_4_AQUI",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "RESPOSTA_4_AQUI"
+      }
+    }
+  ]
+}
