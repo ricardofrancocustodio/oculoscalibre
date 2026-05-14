@@ -231,8 +231,16 @@ function ReserveModal({ open, onClose, onSuccess, produto = 'MB-1572S' }: Reserv
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export function LandingClient() {
-  const [selectedImg, setSelectedImg] = useState(0);
+
+interface RecentPost {
+  slug: string;
+  titulo: string;
+  resumo: string;
+  published_at: string | null;
+  created_at: string;
+}
+
+export function LandingClient({ recentPosts = [] }: { recentPosts?: RecentPost[] }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [selectedProduto, setSelectedProduto] = useState('MB-1572S');
@@ -250,11 +258,37 @@ export function LandingClient() {
   const vagasRestantes = vagasReservadas === null ? VAGAS_TOTAIS : Math.max(VAGAS_TOTAIS - vagasReservadas, 0);
   const percentual = vagasReservadas === null ? 0 : Math.min((vagasReservadas / VAGAS_TOTAIS) * 100, 100);
 
-  const images = [
-    "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&q=90",
-    "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&q=90",
-    "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=800&q=90",
-    "https://images.unsplash.com/photo-1508296695146-257a814070b4?w=800&q=90",
+  const catalogModels = [
+    {
+      id: 'mb-1572s',
+      nome: 'MB-1572S',
+      tag: 'Clássico acetato',
+      frontal: '150.7mm',
+      desc: 'O original. Acetato italiano premium, frontal 150.7mm. O óculos que redefiniu o padrão.',
+      chips: ['Frontal 150.7mm', 'Acetato', 'UV400'],
+      img: '/img/oculos/fotoscalibre/20260505_184758.jpg',
+      produto: 'MB-1572S',
+    },
+    {
+      id: 'viking',
+      nome: 'VIKING',
+      tag: 'Máscara · ZN3828',
+      frontal: '151mm',
+      desc: 'Estilo máscara oversized. Policarbonato, lentes espelhadas polarizadas UV400.',
+      chips: ['Frontal 151mm', 'Policarbonato', 'Polarizado'],
+      img: '/img/oculos/fotoscalibre/fundo branco/viking/1778079940314.png',
+      produto: 'Viking ZN3828',
+    },
+    {
+      id: 'presence',
+      nome: 'PRESENCE',
+      tag: 'Retângulo · 3 tamanhos',
+      frontal: '138–158mm',
+      desc: 'Disponível em S, M-L e XXL. O encaixe certo para cada rosto.',
+      chips: ['S / M-L / XXL', 'Retângulo', 'UV400'],
+      img: '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_8x6czt8x6czt8x6c.png',
+      produto: 'Presence',
+    },
   ];
 
   const handleReserve = () => {
@@ -966,6 +1000,10 @@ export function LandingClient() {
           padding: 80px 24px;
           text-align: center;
         }
+        .catalog-section-hero {
+          padding-top: 64px;
+          padding-bottom: 64px;
+        }
         .catalog-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -1114,6 +1152,9 @@ export function LandingClient() {
         <nav className="nav">
           <span className="nav-logo">CALIBRE</span>
           <div className="nav-actions">
+            <a href="/blog" style={{ color: 'var(--muted)', fontSize: '14px', textDecoration: 'none', fontWeight: 500 }}>
+              Blog
+            </a>
             <span className="badge">🇧🇷 Frete grátis</span>
             <button onClick={handleReserve} className="btn-primary btn-nav pulse-btn">
               Reservar — Entrar na lista
@@ -1121,85 +1162,58 @@ export function LandingClient() {
           </div>
         </nav>
 
-        {/* ── HERO ── */}
-        <section className="hero">
+        {/* ── HERO / COLEÇÃO ── */}
+        <section className="catalog-section catalog-section-hero">
+          <span className="section-tag">Nossa Coleção</span>
+          <h1 className="specs-title">
+            TRÊS MODELOS,{' '}
+            <span className="hero-title-accent">UM PROPÓSITO</span>
+          </h1>
+          <p style={{ color: 'var(--muted)', fontSize: '15px', lineHeight: '1.7', maxWidth: '540px', margin: '0 auto 40px' }}>
+            Desenvolvidos para quem sempre ficou de fora. Escolha o modelo certo para o seu estilo.
+          </p>
 
-          {/* Vídeo principal */}
-          <div className="hero-gallery fade-up" style={{ animationDelay: "0.1s" }}>
-            <div className="hero-image-wrapper">
-              <video
-                src="/Black_sunglasses_rotating_202604281055.mp4"
-                className="hero-image"
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{ width: '100%', height: 'auto', borderRadius: '16px', background: '#000' }}
-              />
-              <div className="badge hero-badge">✦ 150.7mm</div>
-            </div>
-          </div>
-
-          {/* Info */}
-          <div className="hero-info fade-up" style={{ animationDelay: "0.25s" }}>
-            <span className="section-tag">Pré-lançamento · Lista de espera</span>
-
-            <h1 className="hero-title">
-              CALIBRE<br />
-              <span className="hero-title-accent">MB-1572S</span>
-            </h1>
-
-            <p className="hero-description">
-              O único óculos de sol masculino premium feito para quem sempre ficou de fora.
-              <strong> 150.7mm de frontal.</strong> Acetato italiano. Sem apertar.
-            </p>
-
-            <div className="price-block">
-              <div className="price-row">
-                <span className="price-current">R$ 449</span>
-                <span className="price-old">R$ 799</span>
+          <div className="catalog-grid">
+            {catalogModels.map((model) => (
+              <div key={model.id} className="catalog-card fade-up">
+                <a href={`/produto/${model.id}`} aria-label={`Ver ${model.nome}`} style={{ display: 'block' }}>
+                  <div className="catalog-card-img-wrapper">
+                    <img
+                      src={model.img}
+                      alt={`Óculos Calibre ${model.nome} — ${model.frontal} de frontal`}
+                      className="catalog-card-img"
+                    />
+                    <span className="catalog-frontal-badge">{model.frontal}</span>
+                  </div>
+                </a>
+                <div className="catalog-card-body">
+                  <span className="catalog-card-tag">{model.tag}</span>
+                  <a href={`/produto/${model.id}`} className="catalog-card-name" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+                    {model.nome}
+                  </a>
+                  <p className="catalog-card-desc">{model.desc}</p>
+                  <div className="catalog-card-chips">
+                    {model.chips.map((c) => (
+                      <span key={c} className="catalog-chip">{c}</span>
+                    ))}
+                  </div>
+                  <a
+                    href={`/produto/${model.id}`}
+                    className="btn-catalog"
+                    style={{ textDecoration: 'none', textAlign: 'center', display: 'block' }}
+                  >
+                    Ver produto
+                  </a>
+                  <button
+                    type="button"
+                    className="btn-catalog-secondary"
+                    onClick={() => handleReserveForProduct(model.produto)}
+                  >
+                    Entrar na lista de espera
+                  </button>
+                </div>
               </div>
-              <p className="price-perks">
-                ✓ Frete grátis para todo o Brasil &nbsp;·&nbsp; ✓ 30 dias para trocar
-              </p>
-            </div>
-
-            {/* Contador de vagas */}
-            <div className="seats-block">
-              <div className="seats-row">
-                <span className="seats-label">Vagas da 1ª leva</span>
-                <span className="seats-count">
-                  <strong>
-                    <AnimatedNumber target={vagasReservadas ?? 0} />
-                  </strong>
-                  {" / "}{VAGAS_TOTAIS}
-                </span>
-              </div>
-              <div className="seats-bar">
-                <div
-                  className="seats-bar-fill"
-                  style={{ width: `${percentual}%` }}
-                />
-              </div>
-              <p className="seats-hint">
-                <strong>{vagasRestantes} vaga{vagasRestantes === 1 ? '' : 's'} restante{vagasRestantes === 1 ? '' : 's'}</strong> · reservas
-                têm prioridade quando o estoque chegar.
-              </p>
-            </div>
-
-            <button onClick={handleReserve} className="btn-primary pulse-btn">
-              Reservar minha vaga — Grátis
-            </button>
-
-            <p className="secure-text">
-              🔒 Sem cobrança agora · você decide se quer comprar quando avisarmos
-            </p>
-
-            <div className="trust-badges">
-              {["🎖️ Acetato premium", "☀️ UV400", "📦 Envio rápido", "↩️ 30 dias de garantia"].map((b) => (
-                <span key={b} className="trust-badge">{b}</span>
-              ))}
-            </div>
+            ))}
           </div>
         </section>
 
@@ -1212,7 +1226,7 @@ export function LandingClient() {
             </h2>
             <p className="problem-text">
               A maioria dos óculos vendidos no Brasil tem entre <strong>138mm e 145mm</strong> de frontal.
-              Se sua cabeça passa de 150mm — e a de muitos passa —
+              Se sua cabeça passa de 150mm, e a de muitos passa,
               você simplesmente não existe para o mercado convencional.
             </p>
 
@@ -1261,91 +1275,48 @@ export function LandingClient() {
           </button>
         </section>
 
-        {/* ── COLEÇÃO ── */}
-        <section className="catalog-section">
-          <span className="section-tag">Nossa Coleção</span>
-          <h2 className="specs-title">
-            TRÊS MODELOS,{' '}
-            <span className="hero-title-accent">UM PROPÓSITO</span>
-          </h2>
-          <p style={{ color: 'var(--muted)', fontSize: '15px', lineHeight: '1.7', maxWidth: '540px', margin: '0 auto 40px' }}>
-            Desenvolvidos para quem sempre ficou de fora. Escolha o modelo certo para o seu estilo.
-          </p>
-
-          <div className="catalog-grid">
-            {[
-              {
-                id: 'mb-1572s',
-                nome: 'MB-1572S',
-                tag: 'Clássico acetato',
-                frontal: '150.7mm',
-                desc: 'O original. Acetato italiano premium, frontal 150.7mm. O óculos que redefiniu o padrão.',
-                chips: ['Frontal 150.7mm', 'Acetato', 'UV400'],
-                img: '/img/oculos/fotoscalibre/20260505_184758.jpg',
-                produto: 'MB-1572S',
-              },
-              {
-                id: 'viking',
-                nome: 'VIKING',
-                tag: 'Máscara · ZN3828',
-                frontal: '151mm',
-                desc: 'Estilo máscara oversized. Policarbonato, lentes espelhadas polarizadas UV400.',
-                chips: ['Frontal 151mm', 'Policarbonato', 'Polarizado'],
-                img: '/img/oculos/fotoscalibre/fundo branco/viking/1778079940314.png',
-                produto: 'Viking ZN3828',
-              },
-              {
-                id: 'presence',
-                nome: 'PRESENCE',
-                tag: 'Retângulo · 3 tamanhos',
-                frontal: '138–158mm',
-                desc: 'Disponível em S, M-L e XXL. O encaixe certo para cada rosto.',
-                chips: ['S / M-L / XXL', 'Retângulo', 'UV400'],
-                img: '/img/oculos/fotoscalibre/fundo branco/presence/Gemini_Generated_Image_8x6czt8x6czt8x6c.png',
-                produto: 'Presence',
-              },
-            ].map((model) => (
-              <div key={model.id} className="catalog-card">
-                <a href={`/produto/${model.id}`} aria-label={`Ver ${model.nome}`} style={{ display: 'block' }}>
-                  <div className="catalog-card-img-wrapper">
-                    <img
-                      src={model.img}
-                      alt={`Óculos Calibre ${model.nome} — ${model.frontal} de frontal`}
-                      className="catalog-card-img"
-                    />
-                    <span className="catalog-frontal-badge">{model.frontal}</span>
-                  </div>
-                </a>
-                <div className="catalog-card-body">
-                  <span className="catalog-card-tag">{model.tag}</span>
-                  <a href={`/produto/${model.id}`} className="catalog-card-name" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-                    {model.nome}
-                  </a>
-                  <p className="catalog-card-desc">{model.desc}</p>
-                  <div className="catalog-card-chips">
-                    {model.chips.map((c) => (
-                      <span key={c} className="catalog-chip">{c}</span>
-                    ))}
-                  </div>
+        {/* ── ARTIGOS RECENTES ── */}
+        {recentPosts.length > 0 && (
+          <section style={{ maxWidth: '1152px', margin: '0 auto', padding: '80px 24px' }}>
+            <span className="section-tag">Do blog</span>
+            <h2 className="specs-title" style={{ textAlign: 'left', marginBottom: '32px' }}>
+              ARTIGOS <span className="hero-title-accent">RECENTES</span>
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+              {recentPosts.map((post) => {
+                const date = new Date(post.published_at ?? post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+                return (
                   <a
-                    href={`/produto/${model.id}`}
-                    className="btn-catalog"
-                    style={{ textDecoration: 'none', textAlign: 'center', display: 'block' }}
+                    key={post.slug}
+                    href={`/blog/${post.slug}`}
+                    style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '28px', gap: '12px', transition: 'border-color 0.25s, transform 0.25s' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(200,241,53,0.35)'; (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-4px)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(0)'; }}
                   >
-                    Ver produto
+                    <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lime)' }}>{date}</span>
+                    <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 700, lineHeight: 1.3 }}>{post.titulo}</h3>
+                    {post.resumo && (
+                      <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.6, flex: 1 }}>
+                        {post.resumo.length > 120 ? post.resumo.slice(0, 120) + '…' : post.resumo}
+                      </p>
+                    )}
+                    <span style={{ color: 'var(--lime)', fontSize: '13px', fontWeight: 600 }}>Ler artigo →</span>
                   </a>
-                  <button
-                    type="button"
-                    className="btn-catalog-secondary"
-                    onClick={() => handleReserveForProduct(model.produto)}
-                  >
-                    Entrar na lista de espera
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+                );
+              })}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '40px' }}>
+              <a
+                href="/blog"
+                style={{ display: 'inline-block', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: '100px', padding: '12px 32px', fontSize: '14px', fontWeight: 600, textDecoration: 'none', letterSpacing: '0.04em', transition: 'color 0.15s, border-color 0.15s' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--lime)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(200,241,53,0.35)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--muted)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)'; }}
+              >
+                Ver todos os artigos
+              </a>
+            </div>
+          </section>
+        )}
 
         {/* ── FAQ ── */}
         <section className="faq-section">
