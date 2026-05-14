@@ -31,8 +31,10 @@ Sua missão: produzir artigos SEO sérios para o blog em português brasileiro, 
 
 - Saída APENAS em Markdown puro — sem cercas \`\`\`markdown, sem prefixo "Aqui está o artigo", sem comentários do tipo "# Artigo".
 - Exatamente UM H1 ("# Título") no início, contendo a keyword principal de forma natural.
+- **Estrutura da abertura (obrigatória):** O primeiro parágrafo NÃO apresenta o produto como solução. Ele espelha o problema do leitor: descreve a situação concreta, os números que provam que o problema existe. O produto entra como exemplo apenas DEPOIS de o leitor reconhecer que o problema é dele. NUNCA abra com "O modelo X tem frontal de Y mm" ou qualquer apresentação de produto — isso assusta quem ainda não sabe se sua cabeça é grande o suficiente.
 - **Primeiros 80–100 palavras respondem DIRETAMENTE à pergunta do título.** Sem preâmbulo, sem história da marca, sem "neste post você vai aprender", sem storytelling de abertura. Estado o fato, depois expande. LLMs frequentemente citam só o primeiro parágrafo — se ele é genérico, você perde a citação.
-- 4 a 6 H2s ("## Seção"). Use H3s ("### Subseção") quando ajudar a escaneabilidade. Headings devem ser perguntas ou afirmações concretas, nunca palavras soltas ("Largura frontal" → "Qual largura frontal serve em cabeça de 60 cm?").
+- **Link /guia-de-medidas obrigatório:** Toda vez que o artigo orientar o leitor a medir circunferência da cabeça, largura frontal ou têmpora, ou quando mencionar faixas como "58 cm", "60 cm", "150 mm", insira o link [Guia de Medidas](/guia-de-medidas) na primeira ocorrência dessa instrução. Obrigatório em todo artigo que trate de medidas ou escolha de tamanho.
+- 4 a 6 H2s ("## Seção"). Use H3s ("### Subseção") quando ajudar a escaneabilidade. **Headings devem ser específicos para a keyword DESTE artigo** — nunca genéricos o suficiente para servir em outro post do mesmo cluster. Se o briefing sugere "Quais medidas observar", transforme em pergunta do tema concreto: "Qual largura frontal evita aperto em cabeça de 62 cm?" Num cluster, nenhum post deve ter H2 idêntico a outro.
 - Densidade da keyword principal: 0,5%–2,0% do total de palavras. Não force.
 - Cada keyword secundária aparece pelo menos uma vez, com naturalidade.
 - **Densidade factual obrigatória:** pelo menos 1 medida concreta (mm, cm, g, R$, dias) a cada 200 palavras. Substitua "grande/confortável/perfeito" por número que prove (frontal 150,7 mm, peso 32 g, ponte 24 mm, prazo 5 dias).
@@ -150,6 +152,7 @@ Nenhuma destas pode aparecer como abertura:
 - **Generalizar de "rosto largo" para "qualquer rosto"** — perde diferenciação.
 - **Tom promocional excessivo** ("o melhor", "incrível", "revolucionário").
 - **Em-dash (—) em qualquer lugar do texto.**
+- **Mencionar ou recomendar plataformas de terceiros** (Amazon, Mercado Livre, Shopee, Magazine Luiza, OLX, óticas físicas não parceiras) como local de compra. Quando o CTA for de compra, direcione para /produto/[slug] ou a lista de espera do site.
 
 # Métrica de qualidade (autocheck antes de entregar)
 
@@ -220,7 +223,9 @@ function buildBriefingPrompt(brief: WriterBrief): string {
 - **CTA sugerido:** ${brief.ctaSugerido}
 - **Título operacional sugerido (pode refinar):** ${brief.tituloSugerido}
 
-## Estrutura H2 sugerida (pode ajustar)
+## Estrutura H2 sugerida (ponto de partida — adapte ao tema específico)
+
+Os H2s abaixo são sugestões genéricas do integrador. Transforme cada um em uma pergunta ou afirmação concreta do tema deste artigo. Num cluster semântico, nenhum post pode ter H2 idêntico a outro do grupo.
 
 ${brief.h2Sugeridos.length ? brief.h2Sugeridos.map((h) => `- ${h}`).join('\n') : '- (definir conforme briefing)'}
 

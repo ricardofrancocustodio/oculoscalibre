@@ -166,33 +166,106 @@ function buildTitle(keyword: ContentIntegratorKeyword): string {
 
 function buildHeadings(keyword: ContentIntegratorKeyword, product: ProductCatalogItem): string[] {
   const term = normalize(keyword.termo);
+  const frontal = product.medidas.find((m) => normalize(m.label).includes('frontal'))?.value ?? '150 mm';
 
-  if (includesAny(term, ['medir', 'medida', 'tamanho', '150mm', '60mm'])) {
+  if (includesAny(term, ['medir', 'medida', 'circunferencia', 'centimetro', '58cm', '59cm', '60cm', '61cm', '62cm'])) {
     return [
-      'Por que medidas importam na escolha do oculos',
-      'Como interpretar frontal, lente, ponte e haste',
-      `Como comparar suas medidas com o ${product.nome}`,
-      'Erros comuns ao comprar oculos largo online',
-      'Quando entrar na lista de espera',
+      'Por que a circunferencia da cabeca decide o oculos certo',
+      'Como medir a circunferencia em casa com fita metrica',
+      'Tabela: circunferencia x largura frontal indicada',
+      'O que fazer quando sua medida fica no limite entre dois tamanhos',
+      'Como entrar na lista de espera apos confirmar a medida',
     ];
   }
 
-  if (includesAny(term, ['aperta', 'lateral', 'tempora', 'temporas', 'machuca'])) {
+  if (includesAny(term, ['aperta', 'lateral', 'tempora', 'temporas', 'machuca', 'pressiona', 'dor de cabeca'])) {
     return [
-      'Por que alguns oculos apertam nas laterais',
-      'Quais medidas observar para reduzir desconforto',
-      `Como o ${product.nome} usa frontal amplo como referencia`,
-      'Como comparar com seu oculos atual',
-      'Proximo passo para escolher com mais seguranca',
+      'Por que oculos comuns apertam nas temporas de quem tem cabeca grande',
+      'Qual largura frontal elimina o aperto lateral',
+      'Como comparar seu oculos atual com a medida certa',
+      'Quanto tempo de uso causa dor de cabeca em armacao pequena',
+      'Como escolher sem risco de aperto novamente',
     ];
   }
 
+  if (includesAny(term, ['ponte', 'nariz', 'encaixa', 'desliza', 'cai', 'ajuste no nariz'])) {
+    return [
+      'Por que a ponte e a medida mais ignorada na compra de oculos',
+      'Qual tamanho de ponte serve em cada tipo de nariz',
+      'Como saber se a ponte do seu oculos atual esta correta',
+      `Como a ponte do ${product.nome} foi calibrada`,
+      'Como evitar que o oculos deslize ou marque o nariz',
+    ];
+  }
+
+  if (includesAny(term, ['material', 'acetato', 'metal', 'tr90', 'titanio', 'policarbonato', 'nylon'])) {
+    return [
+      'Por que o material da armacao importa em cabecas grandes',
+      'Diferenca entre acetato, metal e TR-90 em peso e flexibilidade',
+      'Qual material dura mais em uso diario intenso',
+      `Por que o ${product.nome} usa acetato italiano`,
+      'Como cuidar do material para durar mais',
+    ];
+  }
+
+  if (includesAny(term, ['masculino', 'homem', 'homen', 'masculin', 'para homem'])) {
+    return [
+      'Por que homens com rosto largo encontram menos opcoes de oculos',
+      `Qual largura frontal funciona para cabecas masculinas acima de 58 cm`,
+      'Estilos de armacao que ficam bem em rosto largo masculino',
+      'Como comparar medidas antes de comprar online',
+      'Como entrar na lista de espera com seguranca',
+    ];
+  }
+
+  if (includesAny(term, ['feminino', 'mulher', 'feminina', 'para mulher'])) {
+    return [
+      'Por que mulheres com rosto largo encontram menos opcoes de oculos',
+      'Qual largura frontal funciona para cabecas femininas acima de 57 cm',
+      'Estilos que ficam proporcionais em rosto largo feminino',
+      'Como comparar medidas antes de comprar online',
+      'Como entrar na lista de espera com seguranca',
+    ];
+  }
+
+  if (includesAny(term, ['formato', 'rosto redondo', 'rosto oval', 'rosto quadrado', 'rosto triangular'])) {
+    return [
+      'Como o formato do rosto influencia a escolha do oculos',
+      'Por que largura frontal importa mais do que "formato de rosto"',
+      'Armacoes que equilibram rosto largo em qualquer formato',
+      'Como testar proporcao antes de comprar',
+      'Proximo passo: medir antes de decidir',
+    ];
+  }
+
+  if (includesAny(term, ['online', 'comprar', 'preco', 'valor', 'loja', 'onde comprar'])) {
+    return [
+      'Por que comprar oculos online exige atencao as medidas',
+      'Quais medicoes confirmar antes de fechar a compra',
+      'Como interpretar ficha tecnica sem errar o tamanho',
+      'O que fazer se o oculos nao servir',
+      'Como entrar na lista de espera com seguranca',
+    ];
+  }
+
+  if (includesAny(term, ['haste', 'tempora', 'comprimento', 'dobra'])) {
+    return [
+      'Por que o comprimento da haste importa em cabecas grandes',
+      `Qual tamanho de haste evita pressao atras da orelha`,
+      'Como medir a haste do seu oculos atual',
+      `Como a haste do ${product.nome} foi dimensionada`,
+      'Como escolher sem erro de tamanho de haste',
+    ];
+  }
+
+  // generic fallback — ainda especifico o suficiente para nao repetir entre posts
+  const topicWord = keyword.termo.split(' ').slice(0, 2).join(' ');
   return [
-    'Por que oculos comuns podem parecer pequenos em rosto largo',
-    'Quais medidas observar antes de escolher',
-    'Como comparar frontal, lente, ponte e haste',
-    `Quando o ${product.nome} faz sentido como referencia`,
-    'Como seguir para a lista de espera',
+    `Por que a maioria dos oculos nao serve para ${topicWord}`,
+    'Quais tres medidas observar antes de escolher',
+    `Como comparar frontal (${frontal}), lente, ponte e haste`,
+    `Quando o ${product.nome} serve como referencia de medida`,
+    'Como confirmar o tamanho certo antes de comprar',
   ];
 }
 
