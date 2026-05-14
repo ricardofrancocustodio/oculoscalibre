@@ -14,12 +14,14 @@ export function BlogPageChrome({
   description,
   children,
   actions,
+  isAdmin = false,
 }: {
   eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
   actions?: ReactNode;
+  isAdmin?: boolean;
 }) {
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
@@ -45,7 +47,7 @@ export function BlogPageChrome({
       <div style={dynamicAmbientGlowStyle} />
       <div style={dynamicAmbientGlowSecondaryStyle} />
       <div style={shellStyle}>
-        <BlogNav />
+        <BlogNav isAdmin={isAdmin} />
         <header style={heroStyle}>
           <span style={{ ...eyebrowStyle, color: colors.accentPrimary }}>{eyebrow}</span>
           <h1 style={{ ...titleStyle, color: colors.text }}>{title}</h1>
@@ -58,7 +60,7 @@ export function BlogPageChrome({
   );
 }
 
-export function BlogNav() {
+export function BlogNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
 
@@ -71,9 +73,11 @@ export function BlogNav() {
         <Link href="/blog" style={{ ...navLinkStyle, color: colors.navLinkText, background: colors.navLinkBackground, borderColor: colors.navLinkBorder }}>
           Blog
         </Link>
-        <Link href="/admin/posts" style={{ ...navLinkStyle, color: colors.navLinkText, background: colors.navLinkBackground, borderColor: colors.navLinkBorder }}>
-          Admin de posts
-        </Link>
+        {isAdmin && (
+          <Link href="/admin/posts" style={{ ...navLinkStyle, color: colors.navLinkText, background: colors.navLinkBackground, borderColor: colors.navLinkBorder }}>
+            Admin de posts
+          </Link>
+        )}
         <ThemeToggle />
       </div>
     </nav>

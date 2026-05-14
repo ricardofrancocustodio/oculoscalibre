@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { getPublishedPosts } from '@/lib/db';
 import { getFlatPosts, listSilos, toBlogPostView } from '@/lib/blog';
 import { BlogPageChrome, BlogPostCard, EmptyState, SectionTitle, SiloCard, Stack, contentPanelStyle } from './_components';
@@ -27,6 +28,9 @@ export const metadata: Metadata = {
 };
 
 export default async function BlogHomePage() {
+  const cookieStore = await cookies();
+  const isAdmin = !!cookieStore.get('admin_token')?.value;
+
   const posts = await getPublishedPosts();
   const silos = listSilos(posts);
   const recentPosts = posts.map(toBlogPostView).slice(0, 6);
@@ -35,17 +39,13 @@ export default async function BlogHomePage() {
   return (
     <BlogPageChrome
       eyebrow="Blog Calibre"
-      title="Silos prontos para construir autoridade temática"
-      description="O blog agora nasce com páginas-pilar, trilhas hierárquicas e interlinking focado dentro de cada tema. O objetivo é publicar conteúdos que reforçam o assunto principal sem misturar intenções." 
+      title="Guias sobre óculos para rosto largo"
+      description="Conteúdos organizados por tema — medidas, encaixe, escolha de modelo. Cada silo aprofunda um assunto sem misturar intenções."
+      isAdmin={isAdmin}
       actions={
-        <>
-          <Link href="/admin/posts" style={primaryButtonStyle}>
-            Gerenciar posts
-          </Link>
-          <Link href="/" style={secondaryButtonStyle}>
-            Voltar ao site
-          </Link>
-        </>
+        <Link href="/" style={secondaryButtonStyle}>
+          Voltar ao site
+        </Link>
       }
     >
       <Stack>
@@ -142,10 +142,11 @@ const principlesGridStyle = {
 };
 
 const principleCardStyle = {
-  borderRadius: '22px',
-  padding: '20px',
-  background: 'rgba(255,255,255,0.58)',
-  border: '1px solid rgba(79, 55, 38, 0.1)',
+  borderRadius: '18px',
+  padding: '24px',
+  background: '#fff',
+  border: '1px solid rgba(79, 55, 38, 0.16)',
+  boxShadow: '0 2px 12px rgba(72, 47, 28, 0.07)',
   display: 'grid',
   gap: '10px',
 };
@@ -159,34 +160,26 @@ const principleNumberStyle = {
 
 const principleTitleStyle = {
   margin: 0,
-  fontSize: '20px',
-  lineHeight: 1.1,
+  fontSize: '18px',
+  lineHeight: 1.2,
+  color: '#201A16',
+  fontWeight: 700,
 };
 
 const principleTextStyle = {
   margin: 0,
-  color: '#5F564E',
+  color: '#4A433B',
   fontSize: '14px',
   lineHeight: 1.7,
 };
 
-const primaryButtonStyle = {
-  color: '#fff',
-  background: '#201A16',
-  textDecoration: 'none',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  fontSize: '14px',
-};
-
 const secondaryButtonStyle = {
   color: '#201A16',
-  background: 'rgba(255,255,255,0.58)',
+  background: 'rgba(255,255,255,0.7)',
   textDecoration: 'none',
   padding: '12px 18px',
   borderRadius: '999px',
   fontWeight: 700,
   fontSize: '14px',
-  border: '1px solid rgba(79, 55, 38, 0.12)',
+  border: '1px solid rgba(79, 55, 38, 0.18)',
 };

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { extractFaqsFromMarkdown, filterPostsForTopic, getRelatedPosts, toBlogPostView } from '@/lib/blog';
 import { getPostBySlug, getPublishedPosts, type Post } from '@/lib/db';
 import { MarkdownRenderer } from '@/lib/markdown';
@@ -117,10 +118,12 @@ export default async function BlogEntryPage({
     notFound();
   }
 
+  const cookieStore = await cookies();
+  const isAdmin = !!cookieStore.get('admin_token')?.value;
   const posts = await getPublishedPosts();
 
   if (exactPost?.publicado) {
-    return <PostPage post={exactPost} posts={posts} />;
+    return <PostPage post={exactPost} posts={posts} isAdmin={isAdmin} />;
   }
 
   const topicPosts = filterPostsForTopic(posts, requestedPath);
@@ -128,10 +131,10 @@ export default async function BlogEntryPage({
     notFound();
   }
 
-  return <TopicPage topicPath={requestedPath} posts={topicPosts} />;
+  return <TopicPage topicPath={requestedPath} posts={topicPosts} isAdmin={isAdmin} />;
 }
 
-function TopicPage({ topicPath, posts }: { topicPath: ReturnType<typeof filterPostsForTopic>[number]['topicPath']; posts: ReturnType<typeof filterPostsForTopic> }) {
+function TopicPage({ topicPath, posts, isAdmin = false }: { topicPath: ReturnType<typeof filterPostsForTopic>[number]['topicPath']; posts: ReturnType<typeof filterPostsForTopic>; isAdmin?: boolean }) {
   const segments = topicPath.split('/').filter(Boolean);
   const title = humanizeSlugSegment(segments[segments.length - 1] ?? topicPath);
   const parentPath = segments.length > 1 ? segments.slice(0, -1).join('/') : null;
@@ -160,6 +163,7 @@ function TopicPage({ topicPath, posts }: { topicPath: ReturnType<typeof filterPo
       eyebrow={segments.length === 1 ? 'Pillar page' : 'Subtema do silo'}
       title={title}
       description={`Esta página concentra ${posts.length} artigo${posts.length === 1 ? '' : 's'} do caminho /${topicPath}. Todos os links abaixo permanecem dentro do mesmo contexto temático.`}
+      isAdmin={isAdmin}
       actions={
         parentPath ? (
           <Link href={`/blog/${parentPath}`} style={buttonStyle}>
@@ -229,7 +233,7 @@ function TopicPage({ topicPath, posts }: { topicPath: ReturnType<typeof filterPo
   );
 }
 
-function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
+function PostPage({ post, posts, isAdmin = false }: { post: Post; posts: Post[]; isAdmin?: boolean }) {
   const view = toBlogPostView(post);
   const relatedPosts = getRelatedPosts(posts, post.slug, 3);
 
@@ -253,6 +257,7 @@ function PostPage({ post, posts }: { post: Post; posts: Post[] }) {
       eyebrow={view.siloLabel}
       title={view.titulo}
       description={view.resumo}
+      isAdmin={isAdmin}
       actions={
         <div style={breadcrumbsStyle}>
           <Link href="/blog" style={ghostLinkStyle}>
