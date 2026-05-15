@@ -45,6 +45,43 @@ export function websiteSchema() {
   };
 }
 
+const SHIPPING_DETAILS = {
+  '@type': 'OfferShippingDetails',
+  shippingRate: {
+    '@type': 'MonetaryAmount',
+    value: '0',
+    currency: 'BRL',
+  },
+  shippingDestination: {
+    '@type': 'DefinedRegion',
+    addressCountry: 'BR',
+  },
+  deliveryTime: {
+    '@type': 'ShippingDeliveryTime',
+    handlingTime: {
+      '@type': 'QuantitativeValue',
+      minValue: 1,
+      maxValue: 3,
+      unitCode: 'DAY',
+    },
+    transitTime: {
+      '@type': 'QuantitativeValue',
+      minValue: 3,
+      maxValue: 10,
+      unitCode: 'DAY',
+    },
+  },
+};
+
+const RETURN_POLICY = {
+  '@type': 'MerchantReturnPolicy',
+  applicableCountry: 'BR',
+  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+  merchantReturnDays: 30,
+  returnMethod: 'https://schema.org/ReturnByMail',
+  returnFees: 'https://schema.org/FreeReturn',
+};
+
 export function productSchema(product: ProductCatalogItem, options: { price?: string; priceCurrency?: string; availability?: string } = {}) {
   const price = options.price ?? product.price;
   const availability = options.availability ?? (
@@ -53,13 +90,21 @@ export function productSchema(product: ProductCatalogItem, options: { price?: st
     : 'https://schema.org/PreOrder'
   );
 
+  const images = product.imagens?.length
+    ? product.imagens.map((img) => absoluteUrl(img))
+    : product.imagemUrl
+    ? [absoluteUrl(product.imagemUrl)]
+    : undefined;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.nome,
     description: product.descricao,
     category: product.categoria,
+    sku: product.id,
     brand: { '@type': 'Brand', name: SITE_NAME },
+    ...(images ? { image: images } : {}),
     additionalProperty: product.medidas.map((medida) => ({
       '@type': 'PropertyValue',
       name: medida.label,
@@ -81,6 +126,8 @@ export function productSchema(product: ProductCatalogItem, options: { price?: st
           availability,
           url: absoluteUrl(product.url),
           seller: { '@id': `${absoluteUrl('/')}#organization` },
+          shippingDetails: SHIPPING_DETAILS,
+          hasMerchantReturnPolicy: RETURN_POLICY,
         }
       : undefined,
   };
